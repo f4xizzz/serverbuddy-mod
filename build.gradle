@@ -1,0 +1,205 @@
+plugins {
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+	id 'org.jetbrains.kotlin.jvm' version "${kotlin_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+loom {
+	// o codigo portado dos Skies le campos privados do Minecraft (antes liberados pelo access widener do Cobblemon)
+	accessWidenerPath = file("src/main/resources/serverbuddy.accesswidener")
+}
+
+configurations {
+	// so para o servidor de teste (runServer) com Cobblemon; nao entra no jar
+	devCobblemonRuntime {
+		canBeConsumed = false
+		canBeResolved = true
+	}
+}
+
+repositories {
+	mavenCentral()
+	flatDir { dirs 'libs-compile' }
+	maven { url "https://maven.fabricmc.net/" }
+	maven { url "https://maven.architectury.dev/" }
+	maven { url "https://maven.impactdev.net/repository/development/" }
+	maven { url "https://maven.nucleoid.xyz/"; name = "Nucleoid" }
+	maven { url "https://jitpack.io" }
+	maven { url "https://cursemaven.com" }
+	maven { url "https://maven.tomalbrc.de" }
+	maven { url "https://maven.blazing-coop.net/releases" }
+	maven {
+		name = "Modrinth"
+		url = "https://api.modrinth.com/maven"
+		content { includeGroup "maven.modrinth" }
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	modImplementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
+	// o adaptador do Kotlin vai dentro do jar (jar-in-jar): o servidor nao precisa instalar o Fabric Language Kotlin a parte
+	include("net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}") { transitive = false }
+	// Cobblemon e uma integracao OPCIONAL: so a API para compilar. O ServerBuddy funciona sem ele; os recursos de
+	// Pokemon (pacote "cobblemon") so carregam quando ele esta instalado.
+	modCompileOnly "com.cobblemon:fabric:1.8.0+1.21.1"
+	// Servidor de teste (gradlew runServer): com Cobblemon por padrao; para testar SEM ele: gradlew runServer -PsemCobblemon
+	if (!project.hasProperty('semCobblemon')) {
+		modLocalRuntime "com.cobblemon:fabric:1.8.0+1.21.1"
+		// o ambiente de desenvolvimento nao traz as bibliotecas aninhadas do Cobblemon que o Showdown precisa. O icu4j entra
+		// por uma configuracao separada: na resolucao normal o Minecraft troca a 71.1 pela 73.2 (do cliente) e o Loom a
+		// tira do runServer.
+		devCobblemonRuntime 'com.ibm.icu:icu4j:71.1'
+		runtimeOnly files(configurations.devCobblemonRuntime)
+	}
+
+	// Bibliotecas embutidas no jar (jar-in-jar), sem dependencias transitivas
+	implementation('com.zaxxer:HikariCP:5.1.0') { transitive = false }
+	include('com.zaxxer:HikariCP:5.1.0') { transitive = false }
+	// (sem "transitive = false" aqui: no ambiente de desenvolvimento as bibliotecas do adventure vem pelas dependencias dele;
+	// no jar final vai so o proprio adventure-platform-fabric, que ja traz as dele embutidas)
+	modImplementation('net.kyori:adventure-platform-fabric:5.14.2')
+	include('net.kyori:adventure-platform-fabric:5.14.2') { transitive = false }
+	implementation('net.kyori:adventure-text-minimessage:4.17.0') { transitive = false }
+	include('net.kyori:adventure-text-minimessage:4.17.0') { transitive = false }
+	implementation('com.mysql:mysql-connector-j:8.3.0') { transitive = false }
+	include('com.mysql:mysql-connector-j:8.3.0') { transitive = false }
+	modImplementation('eu.pb4:sgui:1.6.1+1.21.1') { transitive = false }
+	include('eu.pb4:sgui:1.6.1+1.21.1') { transitive = false }
+	implementation('org.xerial:sqlite-jdbc:3.45.1.0') { transitive = false }
+	include('org.xerial:sqlite-jdbc:3.45.1.0') { transitive = false }
+
+	// Armazenamento dos modulos (SQL e MongoDB), embutido no jar
+	implementation('com.h2database:h2:2.2.224') { transitive = false }
+	include('com.h2database:h2:2.2.224') { transitive = false }
+	implementation('org.mariadb.jdbc:mariadb-java-client:3.1.0') { transitive = false }
+	include('org.mariadb.jdbc:mariadb-java-client:3.1.0') { transitive = false }
+	implementation('org.mongodb:mongodb-driver-sync:4.11.0') { transitive = false }
+	include('org.mongodb:mongodb-driver-sync:4.11.0') { transitive = false }
+	implementation('org.mongodb:mongodb-driver-core:4.11.0') { transitive = false }
+	include('org.mongodb:mongodb-driver-core:4.11.0') { transitive = false }
+	implementation('org.mongodb:bson:4.11.0') { transitive = false }
+	include('org.mongodb:bson:4.11.0') { transitive = false }
+
+	// GraalVM (scripts JavaScript das GUIs e dos Kits): o Cobblemon 1.8 ja embute o GraalVM completo
+	// (SDK, Truffle, JS, regex e ICU 22.3.0) para os combates. Embutir outro aqui conflitava com o dele
+	// e quebrava o Showdown do Cobblemon, entao o ServerBuddy so compila contra a API e usa o do Cobblemon.
+	compileOnly('org.graalvm.sdk:graal-sdk:22.3.0') { transitive = false }
+
+	// Outras dependencias
+	compileOnly 'net.kyori:adventure-platform-api:4.3.4'
+	// Gooey (menus): a API vai embutida no jar (antes o mod antigo dependia de outro mod para ter essas classes)
+	modCompileOnly name: 'GooeyLibs-Fabric-3.1.1-1.21.x'
+	modImplementation name: 'api-repack-3.1.1-1.21.x'
+	include name: 'api-repack-3.1.1-1.21.x'
+	modImplementation('me.lucko:fabric-permissions-api:0.3.1') { transitive = false }
+	include('me.lucko:fabric-permissions-api:0.3.1')
+	compileOnly('net.impactdev.impactor.api:economy:5.3.5') { transitive = false }
+	compileOnly('net.impactdev.impactor.api:core:5.3.5') { transitive = false }
+	compileOnly 'net.kyori:adventure-api:4.17.0'
+	compileOnly 'net.kyori:adventure-key:4.17.0'
+	compileOnly 'net.kyori:adventure-text-serializer-gson:4.17.0'
+	compileOnly 'net.kyori:adventure-text-serializer-legacy:4.17.0'
+	compileOnly 'net.kyori:adventure-text-serializer-plain:4.17.0'
+	compileOnly 'net.kyori:adventure-text-serializer-json:4.17.0'
+	compileOnly 'net.kyori:examination-api:1.3.0'
+	modImplementation 'eu.pb4:placeholder-api:2.4.2+1.21'
+	include('eu.pb4:placeholder-api:2.4.2+1.21') { transitive = false }
+
+	// Modulos portados dos Skies (so compilacao: integracoes opcionais ficam fora do jar)
+	modCompileOnly 'io.github.miniplaceholders:miniplaceholders-api:2.2.3'
+	modCompileOnly 'io.github.miniplaceholders:miniplaceholders-kotlin-ext:2.2.3'
+	compileOnly('net.impactdev.impactor.api:text:5.3.5') { transitive = false }
+	compileOnly('net.impactdev.impactor.api:players:5.3.5') { transitive = false }
+	// Crates: bibliotecas embutidas e integracoes opcionais (so compilacao; ficam fora do jar)
+	implementation('com.github.ben-manes.caffeine:caffeine:3.2.0') { transitive = false }
+	include('com.github.ben-manes.caffeine:caffeine:3.2.0') { transitive = false }
+	modCompileOnly 'eu.pb4:polymer-core:0.9.18+1.21.1'
+	modCompileOnly 'eu.pb4:polymer-virtual-entity:0.9.18+1.21.1'
+	modCompileOnly 'eu.pb4:polymer-networking:0.9.18+1.21.1'
+	modCompileOnly 'eu.pb4:polymer-resource-pack:0.9.18+1.21.1'
+	modCompileOnly 'de.tomalbrc:blockbench-import-library:1.2.7+1.21'
+	modCompileOnly name: 'holodisplays-0.4.8+1.20.6'
+	// HoloDisplays is optional. Its original mod is installed separately.
+	include('eu.pb4:polymer-bundled:0.9.18+1.21.1') { transitive = false }
+	include('de.tomalbrc:blockbench-import-library:1.2.7+1.21') { transitive = false }
+	// Dimensions module: Nucleoid's Fantasy (LGPL-3.0) is embedded as a jar-in-jar dependency.
+	modImplementation('xyz.nucleoid:fantasy:0.6.4+1.21') { transitive = false }
+	include('xyz.nucleoid:fantasy:0.6.4+1.21') { transitive = false }
+	modCompileOnly 'io.github.flemmli97:flan:1.21.1-1.12.2-fabric:api'
+	// Flan completo so para rodar o servidor de teste (./gradlew runServer); nao vai no jar.
+	// Para testar SEM ele: gradlew runServer -PsemFlan
+	if (!project.hasProperty('semFlan')) {
+		modLocalRuntime 'maven.modrinth:flan:1.21.1-1.12.8-fabric'
+	}
+
+	// Para testar o STS e o GTS (que cobram e pagam em dinheiro) o servidor de teste precisa de uma economia: gradlew runServer -PcomEconomia
+	// sobe o BEconomy junto (so no servidor de teste; nao vai no jar)
+	if (project.hasProperty('comEconomia')) {
+		modLocalRuntime name: 'beconomy-1.5'
+	}
+
+	// jars de outros mods de economia (so a API, para compilar; nao vao no jar)
+	modCompileOnly name: 'pebbles-economy-1.0.0'
+	modCompileOnly name: 'beconomy-1.5'
+	modCompileOnly name: 'CobbleDollars-fabric-2.0.0+Beta-5.1+1.21.1'
+	compileOnly('com.github.plan-player-analytics:Plan:5.6.2883') { transitive = false }
+	compileOnly 'net.luckperms:api:5.5'
+
+	// Testes
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+}
+
+def apiBase = (project.findProperty('apiBase') ?: 'https://servebuddy.site') as String
+
+processResources {
+	filteringCharset = "UTF-8"
+	inputs.property "version", project.version
+	inputs.property "apiBase", apiBase
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+	filesMatching("serverbuddy-build.properties") {
+		expand "apiBase": apiBase, "version": project.version
+	}
+}
+
+tasks.named('jar', Jar) {
+	from('licenses') {
+		into 'META-INF/licenses'
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = "UTF-8"
+	options.release = 21
+	options.compilerArgs += ['-Xmaxerrs', '5000', '-Xmaxwarns', '200']
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+kotlin {
+	compilerOptions {
+		jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+		// compativel com qualquer fabric-language-kotlin >= 1.11 (Kotlin 2.0 no minimo)
+		languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0
+		apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0
+	}
+}
+
+test {
+	useJUnitPlatform()
+}

@@ -1,0 +1,73 @@
+package com.f4xizzz.serverbuddy.cobblemon.poke.editor.config;
+
+public class EditorGuiConfigModel {
+   public Icons icons = new Icons();
+
+   public static class Icons {
+      public String background_primary = "minecraft:blue_stained_glass_pane";
+      public String background_secondary = "minecraft:red_stained_glass_pane";
+      public String background_dark = "minecraft:black_stained_glass_pane";
+      public String background_light = "minecraft:light_gray_stained_glass_pane";
+      public String background_white = "minecraft:white_stained_glass_pane";
+      public String close_button = "minecraft:barrier";
+      public String next_page = "minecraft:arrow";
+      public String previous_page = "minecraft:arrow";
+      public String arrow_icon = "minecraft:arrow";
+      public String confirm_button = "cobblemon:verdant_ball";
+      public String cancel_button = "cobblemon:poke_ball";
+      public String toggle_on = "minecraft:lime_stained_glass_pane";
+      public String toggle_off = "minecraft:gray_stained_glass_pane";
+      public String status_correct = "minecraft:lime_stained_glass_pane";
+      public String status_partial = "minecraft:yellow_stained_glass_pane";
+      public String status_incorrect = "minecraft:red_stained_glass_pane";
+      public String status_changed = "cobblemon:verdant_ball";
+      public String status_unchanged = "cobblemon:slate_ball";
+      public String empty_slot = "cobblemon:poke_ball";
+      public String edit_button = "cobblemon:weakness_policy";
+      public String pc_button = "cobblemon:pc";
+      public String editor_aspects = "cobblemon:black_glasses";
+      public String editor_dev_mode = "cobblemon:dark_gem";
+      public String editor_level = "cobblemon:rare_candy";
+      public String editor_marks = "cobblemon:blunder_policy";
+      public String editor_shiny_on = "cobblemon:clover_sweet";
+      public String editor_shiny_off = "cobblemon:star_sweet";
+      public String editor_friendship = "cobblemon:soothe_bell";
+      public String editor_evolutions = "cobblemon:upgrade";
+      public String editor_evs = "cobblemon:protein";
+      public String editor_gender_male = "cobblemon:muscle_mochi";
+      public String editor_gender_female = "cobblemon:resist_mochi";
+      public String editor_ability = "cobblemon:ability_capsule";
+      public String editor_nature = "cobblemon:timid_mint";
+      public String editor_ivs = "cobblemon:max_potion";
+      public String editor_catch_ball = "cobblemon:poke_ball";
+      public String editor_form = "minecraft:map";
+      public String ability_patch = "cobblemon:ability_patch";
+      public String ability_capsule = "cobblemon:ability_capsule";
+      public String mark_remove = "cobblemon:red_card";
+      public String mark_random = "cobblemon:binding_band";
+      public String mark_item = "cobblemon:blunder_policy";
+      public String ball_selected = "cobblemon:verdant_ball";
+      public String ball_unselected = "cobblemon:slate_ball";
+      public String ev_hp = "cobblemon:hp_up";
+      public String ev_attack = "cobblemon:protein";
+      public String ev_defence = "cobblemon:iron";
+      public String ev_sp_attack = "cobblemon:calcium";
+      public String ev_sp_defence = "cobblemon:zinc";
+      public String ev_speed = "cobblemon:carbos";
+      public String ev_clear = "cobblemon:swift_mochi";
+      public String iv_hp = "cobblemon:power_weight";
+      public String iv_attack = "cobblemon:power_bracer";
+      public String iv_defence = "cobblemon:power_belt";
+      public String iv_sp_attack = "cobblemon:power_lens";
+      public String iv_sp_defence = "cobblemon:power_band";
+      public String iv_speed = "cobblemon:power_anklet";
+      public String iv_maximize = "cobblemon:courage_candy";
+      public String iv_clear = "cobblemon:mighty_candy";
+      public String level_set_1 = "cobblemon:exp_candy_xs";
+      public String level_add_1 = "cobblemon:exp_candy_s";
+      public String level_add_5 = "cobblemon:exp_candy_m";
+      public String level_add_15 = "cobblemon:exp_candy_l";
+      public String level_add_50 = "cobblemon:exp_candy_xl";
+      public String level_set_100 = "cobblemon:rare_candy";
+   }
+}

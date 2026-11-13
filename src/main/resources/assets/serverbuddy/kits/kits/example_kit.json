@@ -1,0 +1,57 @@
+{
+  "display_name": "Example Kit",
+  "cooldown": 60,
+  "max_uses": 1,
+  "on_join": false,
+  "notifications": true,
+  "permission": "serverbuddy.kits.kit.example_kit",
+  "preview": {
+    "id": "example_preview",
+    "extras": [
+      {
+        "item": "minecraft:diamond",
+        "name": "<red>Brand New Diamond"
+      }
+    ]
+  },
+  "items": [
+    {
+      "item": "minecraft:emerald",
+      "amount": 10,
+      "name": "<green>Special Emerald",
+      "lore": [
+        "<gray><italic>Useful!"
+      ]
+    },
+    {
+      "item": "minecraft:wooden_sword",
+      "name": "<red>Starter Sword"
+    }
+  ],
+  "actions": {
+    "claimed": {
+      "sound_1": {
+        "type": "PLAYSOUND",
+        "sound": "minecraft:entity.player.levelup"
+      },
+      "command_1": {
+        "type": "COMMAND_PLAYER",
+        "commands": [
+          "give %player% diamond 1"
+        ]
+      }
+    },
+    "cooldown": {
+      "sound_1": {
+        "type": "PLAYSOUND",
+        "sound": "minecraft:block.lava.extinguish"
+      }
+    },
+    "requirements": {
+      "sound_1": {
+        "type": "PLAYSOUND",
+        "sound": "minecraft:block.lava.extinguish"
+      }
+    }
+  }
+}

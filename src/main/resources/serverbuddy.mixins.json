@@ -1,0 +1,22 @@
+{
+	"required": true,
+	"package": "com.f4xizzz.serverbuddy.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"DisplayEntityAccessor",
+		"TextDisplayEntityAccessor",
+		"CommandExecuteMixin",
+		"LivingEntitySleepMixin",
+		"SignFormatMixin",
+		"ServerPlayerTabNameMixin",
+		"BlockItemMixin",
+		"ServerChunkLoadingManagerAccessor",
+		"EntityTrackerInvoker"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

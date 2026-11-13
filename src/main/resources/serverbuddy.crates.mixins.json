@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.f4xizzz.serverbuddy.crates.mixins",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "EntityAccessor",
+    "ItemEntityAccessor",
+    "ServerGamePacketListenerImplMixin",
+    "ViewerHandlerAccessor",
+    "ViewerHandlerMixin"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "plugin": "com.f4xizzz.serverbuddy.crates.utils.CratesMixinPlugin"
+}

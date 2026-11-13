@@ -1,0 +1,149 @@
+package com.f4xizzz.serverbuddy.shop.gui
+
+import com.f4xizzz.serverbuddy.shop.config.ConfigManager
+import com.f4xizzz.serverbuddy.shop.data.ShopInstance
+import com.f4xizzz.serverbuddy.shop.data.entry.ShopEntry
+import com.f4xizzz.serverbuddy.shop.placeholders.PlaceholderManager
+import com.f4xizzz.serverbuddy.shop.utils.MolangManager
+import com.f4xizzz.serverbuddy.shop.utils.asNative
+import com.f4xizzz.serverbuddy.shop.utils.replacePlaceholders
+import com.f4xizzz.serverbuddy.shop.utils.clear
+import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.network.chat.Component
+import net.minecraft.server.level.ServerPlayer
+
+class ShopGUI(
+    player: ServerPlayer,
+    val instance: ShopInstance,
+    previous: IRefreshableGui? = null
+) : IRefreshableGui(instance.type, player, false, previous) {
+    private var page = 0
+    private var isClosing = true // indicates if the GUI closing should cause action execution
+
+    val molang: MolangManager? by lazy {
+        if (FabricLoader.getInstance().isModLoaded("cobblemon")) {
+            MolangManager(instance, player)
+        } else {
+            null
+        }
+    }
+
+    init {
+        instance.config.openActions.forEach { (id, action) ->
+            action.executeAction(player, this)
+        }
+
+        refresh()
+    }
+
+    override fun refresh() {
+        this.clear()
+        renderItems()
+        renderPage()
+    }
+
+    private fun renderPage() {
+        (instance.entries[page + 1] ?: mapOf()).forEach { (slot, entry) ->
+            val builder = entry.getGuiItem().createButton(player)
+            this.setSlot(slot, builder
+                .setLore(getItemLore(entry, instance))
+                .setCallback { ctx ->
+                    val genericClicks = GenericClickType.fromClickType(ctx)
+
+                    for (click in genericClicks) {
+                        (entry.clickOptions ?: instance.config.clickOptions)?.let {
+                            it[click]?.execute(player, this, entry)
+                        }
+                    }
+                }
+                .build())
+        }
+    }
+
+    private fun renderItems() {
+        (instance.items[page + 1] ?: listOf()).forEach { item ->
+            val button = item.createButton(player)
+                .setCallback { clickType ->
+                    item.actions.forEach { (_, action) ->
+                        if (action.matchesClick(clickType)) {
+                            action.executeAction(player, this)
+                        }
+                    }
+                }.build()
+            for (slot in item.slots) {
+                this.setSlot(slot, button)
+            }
+        }
+    }
+
+    fun nextPage() {
+        if (page < instance.pages - 1) {
+            page++
+            refresh()
+        }
+    }
+
+    fun previousPage() {
+        if (page > 0) {
+            page--
+            refresh()
+        }
+    }
+
+    fun lastPage() {
+        page = instance.pages - 1
+        refresh()
+    }
+
+    fun firstPage() {
+        page = 0
+        refresh()
+    }
+
+    override fun getTitle(): Component {
+        return PlaceholderManager.parse(player, instance.config.title).asNative()
+    }
+
+    override fun onClose() {
+        if (isClosing) {
+            instance.config.closeActions.forEach { (_, action) ->
+                action.executeAction(player, this)
+            }
+        }
+    }
+
+    companion object {
+        fun getItemLore(entry: ShopEntry, instance: ShopInstance): List<Component> {
+            val description = entry.display.lore.map { line ->
+                Component.empty().withStyle { it.withItalic(false) }.append(line.asNative())
+            }
+
+            val entryLore = instance.config.entryLore ?: ConfigManager.CONFIG.entryLore
+
+            val lines = entry.entryLore ?: if (entry.isBuyable() && entry.isSellable()) {
+                entryLore.buySell
+            } else if (entry.isBuyable()) {
+                entryLore.buy
+            } else if (entry.isSellable()) {
+                entryLore.sell
+            } else {
+                listOf()
+            }
+
+            val lore = mutableListOf<Component>()
+            lines.forEach { line ->
+                if (line.contains("%display_item_lore%")) {
+                    lore.addAll(description)
+                } else {
+                    lore.add(
+                        Component.empty().withStyle { it.withItalic(false) }.append(
+                            line.replacePlaceholders(entry.getPricePlaceholders()).asNative()
+                        )
+                    )
+                }
+            }
+
+            return lore
+        }
+    }
+}

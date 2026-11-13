@@ -1,0 +1,53 @@
+package com.f4xizzz.serverbuddy.shop.utils
+
+import com.f4xizzz.serverbuddy.shop.ShopModule
+import com.f4xizzz.serverbuddy.shop.utils.TextUtils.plainSerializer
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import net.minecraft.network.chat.Component
+import java.math.BigDecimal
+
+object TextUtils {
+    val plainSerializer = PlainTextComponentSerializer.plainText()
+}
+
+fun String.asNative(): Component {
+    return ShopModule.INSTANCE.adventure.toNative(ShopModule.MINI_MESSAGE.deserialize(this))
+}
+
+fun String.replacePlaceholders(placeholders: Map<String, String>): String {
+    if (placeholders.isEmpty()) return this
+    var text = this
+    for ((key, value) in placeholders) {
+        text = text.replace(key, value)
+    }
+    return text
+}
+
+fun String.asNative(placeholders: Map<String, String>): Component {
+    return replacePlaceholders(placeholders).asNative()
+}
+
+fun net.kyori.adventure.text.Component.asNative(): Component {
+    return ShopModule.INSTANCE.adventure.toNative(this)
+}
+
+fun String.asAdventure(): net.kyori.adventure.text.Component {
+    return ShopModule.MINI_MESSAGE.deserialize(this)
+}
+
+fun String.asAdventure(placeholders: Map<String, String>): net.kyori.adventure.text.Component {
+    return replacePlaceholders(placeholders).asAdventure()
+}
+
+fun net.kyori.adventure.text.Component.asPlain(): String {
+    return plainSerializer.serialize(this)
+}
+
+fun Component.asPlain(): String {
+    return plainSerializer.serialize(this.asComponent())
+}
+
+fun Double.trimTrailingZeros(): String = when {
+    this.isNaN() || this.isInfinite() -> this.toString()
+    else -> BigDecimal.valueOf(this).stripTrailingZeros().toPlainString()
+}

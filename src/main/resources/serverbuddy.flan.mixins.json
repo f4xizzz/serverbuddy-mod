@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.f4xizzz.serverbuddy.mixin.flan",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "FlanClaimMenuMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  },
+  "plugin": "com.f4xizzz.serverbuddy.mixin.flan.FlanMixinPlugin"
+}

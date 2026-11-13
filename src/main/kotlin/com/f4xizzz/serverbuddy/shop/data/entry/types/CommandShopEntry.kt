@@ -1,0 +1,46 @@
+package com.f4xizzz.serverbuddy.shop.data.entry.types
+
+import com.f4xizzz.serverbuddy.shop.config.GuiItem
+import com.f4xizzz.serverbuddy.shop.config.PriceOption
+import com.f4xizzz.serverbuddy.shop.data.TransactionResult
+import com.f4xizzz.serverbuddy.shop.data.click.EntryClickOption
+import com.f4xizzz.serverbuddy.shop.data.entry.ShopEntry
+import com.f4xizzz.serverbuddy.shop.data.entry.ShopEntryType
+import com.f4xizzz.serverbuddy.shop.gui.GenericClickType
+import net.minecraft.server.level.ServerPlayer
+
+class CommandShopEntry(
+    type: ShopEntryType = ShopEntryType.COMMAND,
+    display: GuiItem = GuiItem(),
+    slot: List<Int> = listOf(),
+    page: List<Int> = listOf(1),
+    buy: PriceOption? = null,
+    sell: PriceOption? = null,
+    entryLore: List<String>? = null,
+    clickOptions: Map<GenericClickType, EntryClickOption>? = null,
+    private val commands: List<String> = emptyList(),
+    private val asPlayer: Boolean = false,
+) : ShopEntry(type, display, slot, page, buy, sell, entryLore, clickOptions) {
+    override fun buy(player: ServerPlayer, amount: Int): TransactionResult {
+        for (command in commands) {
+            val parsed = command.replace("%player%", player.name.string)
+                .replace("%amount%", amount.toString())
+
+            if (asPlayer) {
+                player.server.commands.performPrefixedCommand(player.createCommandSourceStack(), parsed)
+            } else {
+                player.server.commands.performPrefixedCommand(player.server.createCommandSourceStack(), parsed)
+            }
+        }
+
+        return TransactionResult(true, amount = amount)
+    }
+
+    override fun isSellable(): Boolean {
+        return false
+    }
+
+    override fun toString(): String {
+        return "CommandShopEntry(commands=$commands, asPlayer=$asPlayer) ${super.toString()}"
+    }
+}

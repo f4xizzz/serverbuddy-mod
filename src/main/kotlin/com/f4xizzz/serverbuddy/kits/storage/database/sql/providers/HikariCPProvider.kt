@@ -1,0 +1,90 @@
+package com.f4xizzz.serverbuddy.kits.storage.database.sql.providers
+
+import com.f4xizzz.serverbuddy.kits.config.MainConfig
+import com.f4xizzz.serverbuddy.kits.storage.database.sql.ConnectionProvider
+import com.f4xizzz.serverbuddy.kits.utils.Utils
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import java.sql.Connection
+import java.sql.SQLException
+
+abstract class HikariCPProvider(private val storageConfig: MainConfig.Storage): ConnectionProvider {
+    private lateinit var dataSource: HikariDataSource
+
+    @Throws(SQLException::class)
+    override fun init() {
+        val config = HikariConfig()
+        configure(config)
+
+        config.username = storageConfig.username
+        config.password = storageConfig.password
+        config.jdbcUrl = getConnectionURL()
+        config.driverClassName = getDriverClassName()
+        config.poolName = "serverbuddy-kits-${getDriverName()}"
+        storageConfig.properties.forEach { (propertyName, value) -> config.addDataSourceProperty(propertyName, value) }
+        config.maximumPoolSize = storageConfig.poolSettings.maximumPoolSize
+        config.minimumIdle = storageConfig.poolSettings.minimumIdle
+        config.keepaliveTime = storageConfig.poolSettings.keepaliveTime
+        config.connectionTimeout = storageConfig.poolSettings.connectionTimeout
+        config.idleTimeout = storageConfig.poolSettings.idleTimeout
+        config.maxLifetime = storageConfig.poolSettings.maxLifetime
+
+        dataSource = HikariDataSource(config)
+
+        try {
+            createConnection().use {
+                val statement = it.createStatement()
+                    val result = statement.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS ${storageConfig.tablePrefix}userdata (" +
+                            "uuid VARCHAR(36) NOT NULL, " +
+                            "kits TEXT NOT NULL, " +
+                            "PRIMARY KEY (uuid)" +
+                            ")"
+                )
+                Utils.printInfo("Result from the userdata table creation: $result")
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+    }
+
+    @Throws(SQLException::class)
+    override fun shutdown() {
+        if (!this::dataSource.isInitialized) {
+            Utils.printInfo("HikariCPProvider#shutdown() - datasource not initialized")
+            return
+        }
+
+        try {
+            Utils.printInfo("HikariCPProvider#shutdown() - closing HikariDataSource for ${getDriverName()}")
+            dataSource.close()
+            Utils.printInfo("HikariCPProvider#shutdown() - HikariDataSource closed for ${getDriverName()}")
+        } catch (e: Exception) {
+            Utils.printError("HikariCPProvider#shutdown() - error while closing HikariDataSource: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    @Throws(SQLException::class)
+    override fun createConnection(): Connection {
+        if (!this::dataSource.isInitialized)
+            throw SQLException("The data source is not initialized!")
+        return dataSource.connection
+    }
+
+
+    abstract fun configure(config: HikariConfig)
+    abstract fun getConnectionURL(): String
+    abstract fun getDriverClassName(): String
+    abstract fun getDriverName(): String
+
+    override fun getName(): String {
+        return "hikaricp - ${getDriverName()}"
+    }
+
+    override fun isInitialized(): Boolean {
+        if (!this::dataSource.isInitialized)
+            return false
+        return !dataSource.isClosed
+    }
+}

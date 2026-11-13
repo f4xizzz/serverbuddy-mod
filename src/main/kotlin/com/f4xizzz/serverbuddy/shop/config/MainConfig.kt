@@ -1,0 +1,36 @@
+package com.f4xizzz.serverbuddy.shop.config
+
+import com.google.gson.annotations.SerializedName
+import com.f4xizzz.serverbuddy.shop.data.click.EntryClickOption
+import com.f4xizzz.serverbuddy.shop.gui.GenericClickType
+
+class MainConfig(
+    var debug: Boolean = false,
+    val commands: List<String> = listOf("skiesshop", "shops", "shop"),
+    @SerializedName("base_shop")
+    val baseShop: String = "example",
+    @SerializedName("truncate_prices")
+    val truncatePrices: Boolean = false,
+    @SerializedName("entry_lore")
+    var entryLore: EntryLore = EntryLore(),
+    @SerializedName("click_options")
+    var clickOptions: Map<GenericClickType, EntryClickOption> = mapOf(),
+    var storage: StorageOptions = StorageOptions(),
+    var logging: LoggingOptions = LoggingOptions()
+) {
+    class EntryLore(
+        val buy: List<String> = emptyList(),
+        val sell: List<String> = emptyList(),
+        @SerializedName("buy_sell")
+        val buySell: List<String> = emptyList(),
+    ) {
+        override fun toString(): String {
+            return "EntryLore(buy=$buy, sell=$sell, buySell=$buySell)"
+        }
+    }
+
+    override fun toString(): String {
+        return "MainConfig(debug=$debug, entryLore=$entryLore, truncatePrices=$truncatePrices, " +
+                "clickOptions=$clickOptions, storage=$storage, logging=$logging)"
+    }
+}

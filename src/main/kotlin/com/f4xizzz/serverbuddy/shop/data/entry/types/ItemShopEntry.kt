@@ -1,0 +1,242 @@
+package com.f4xizzz.serverbuddy.shop.data.entry.types
+
+import com.google.gson.annotations.SerializedName
+import com.mojang.authlib.properties.Property
+import com.mojang.authlib.properties.PropertyMap
+import com.f4xizzz.serverbuddy.shop.ShopModule
+import com.f4xizzz.serverbuddy.shop.config.GuiItem
+import com.f4xizzz.serverbuddy.shop.config.Lang
+import com.f4xizzz.serverbuddy.shop.config.PriceOption
+import com.f4xizzz.serverbuddy.shop.data.TransactionResult
+import com.f4xizzz.serverbuddy.shop.data.click.EntryClickOption
+import com.f4xizzz.serverbuddy.shop.data.entry.ShopEntry
+import com.f4xizzz.serverbuddy.shop.data.entry.ShopEntryType
+import com.f4xizzz.serverbuddy.shop.gui.GenericClickType
+import com.f4xizzz.serverbuddy.shop.placeholders.PlaceholderManager
+import com.f4xizzz.serverbuddy.shop.utils.ItemCompareUtils
+import com.f4xizzz.serverbuddy.shop.utils.Utils
+import com.f4xizzz.serverbuddy.shop.utils.asNative
+import com.f4xizzz.serverbuddy.shop.utils.canFit
+import net.minecraft.core.component.DataComponentPatch
+import net.minecraft.core.component.DataComponents
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.world.item.component.CustomModelData
+import net.minecraft.world.item.component.ItemLore
+import net.minecraft.world.item.component.ResolvableProfile
+import java.util.*
+
+class ItemShopEntry(
+    type: ShopEntryType = ShopEntryType.ITEM,
+    display: GuiItem = GuiItem(),
+    slot: List<Int> = listOf(),
+    page: List<Int> = listOf(1),
+    buy: PriceOption? = null,
+    sell: PriceOption? = null,
+    entryLore: List<String>? = null,
+    clickOptions: Map<GenericClickType, EntryClickOption>? = null,
+    val item: String = "",
+    val amount: Int = 1,
+    val name: String? = null,
+    val lore: List<String> = emptyList(),
+    @SerializedName("components", alternate = ["nbt"])
+    val components: CompoundTag? = null,
+    val customModelData: Int? = null,
+    val comparison: ItemCompareUtils.ComparisonOption = ItemCompareUtils.ComparisonOption()
+) : ShopEntry(type, display, slot, page, buy, sell, entryLore, clickOptions) {
+    override fun isValid(): Boolean {
+        if (item.isEmpty()) return false
+        return super.isValid()
+    }
+
+    override fun getGuiItem(): GuiItem {
+        return if (display.item.isEmpty()) {
+            asGuiItem()
+        } else {
+            display
+        }
+    }
+
+    override fun canBuy(player: ServerPlayer, amount: Int): Pair<Boolean, List<String>?> {
+        val stack = getItemStack(player, amount)
+        if (stack == null) {
+            Utils.printError("Error while buying ItemShopEntry, getting ItemStack returned null ($this)")
+            return false to Lang.ERROR_TRANSACTION
+        }
+
+        if (!player.inventory.canFit(stack)) {
+            return false to Lang.TRANSACTION_BUY_INVENTORY
+        }
+
+        return true to null
+    }
+
+    override fun buy(player: ServerPlayer, amount: Int): TransactionResult {
+        val stack = getItemStack(player, amount)
+        if (stack == null) {
+            Utils.printError("Error while buying ItemShopEntry, getting ItemStack returned null ($this)")
+            return TransactionResult(false, Lang.ERROR_TRANSACTION, 0)
+        }
+
+        player.inventory.placeItemBackInInventory(stack)
+
+        return TransactionResult(true, amount = amount)
+    }
+
+    override fun sell(player: ServerPlayer, amount: Int): TransactionResult {
+        var amountFound = 0
+        val matchedSlots: MutableList<Int> = mutableListOf()
+        for ((i, stack) in player.inventory.items.withIndex()) {
+            if (!stack.isEmpty) {
+                if (isItem(player, stack)) {
+                    amountFound += stack.count
+                    matchedSlots.add(i)
+
+                    // break early if amount found matches what we need to prevent unnecessary checks
+                    if (amountFound >= amount) {
+                        break
+                    }
+                }
+            }
+        }
+
+        var removed = 0
+        matchedSlots.forEach { i ->
+            val stack = player.inventory.items[i]
+            val stackSize = stack.count
+            if (removed + stackSize >= amount) {
+                player.inventory.items[i].shrink(amount - removed)
+                removed += amount - removed
+                return@forEach
+            } else {
+                player.inventory.items[i].shrink(stackSize)
+                removed += stackSize
+            }
+        }
+
+        return TransactionResult(true, amount = removed)
+    }
+
+    override fun getDisplayName(player: ServerPlayer): String? {
+        return if (name != null) PlaceholderManager.parse(player, name) else null
+    }
+
+    private fun isItem(player: ServerPlayer, checkItem: ItemStack): Boolean {
+        val stack = getItemStack(player, 1) ?: return false
+        return ItemCompareUtils.matches(player, stack, checkItem, comparison)
+    }
+
+    fun asGuiItem(): GuiItem = GuiItem(
+        item = item,
+        amount = amount,
+        name = name,
+        lore = lore,
+        components = components,
+        customModelData = customModelData
+    )
+
+    fun getItemStack(player: ServerPlayer, amountMultiplier: Int): ItemStack? {
+        if (item.isEmpty()) {
+            Utils.printError("Error while creating ItemShopEntry stack, item ID is empty ($this)")
+            return null
+        }
+
+        val parsedItem = PlaceholderManager.parse(player, item)
+
+        val optItem = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(parsedItem))
+        if (optItem.isEmpty) {
+            Utils.printError("Error while creating ItemShopEntry stack, could not parse Item ID to an actual Item: $parsedItem ($this)")
+            return null
+        }
+
+        var stack = ItemStack(optItem.get(), amount * amountMultiplier)
+
+        // Handles player head parsing
+        if (parsedItem.startsWith("playerhead", true)) {
+            stack = ItemStack(Items.PLAYER_HEAD, amount)
+
+            var uuid: UUID? = null
+            if (parsedItem.contains("-")) {
+                val arg = parsedItem.replace("playerhead-", "")
+                if (arg.isNotEmpty()) {
+                    if (arg.contains("-")) {
+                        // CASE: UUID format
+                        try {
+                            uuid = UUID.fromString(arg)
+                        } catch (_: Exception) {}
+                    } else if (arg.length <= 16) {
+                        // CASE: Player name format
+                        val targetPlayer = ShopModule.INSTANCE.server.playerList?.getPlayerByName(arg)
+                        if (targetPlayer != null) {
+                            uuid = targetPlayer.uuid
+                        }
+                    } else {
+                        // CASE: Game Profile format
+                        val properties = PropertyMap()
+                        properties.put("textures", Property("textures", arg))
+                        stack.applyComponents(DataComponentPatch.builder()
+                            .set(DataComponents.PROFILE, ResolvableProfile(Optional.empty(), Optional.empty(), properties))
+                            .build())
+                    }
+                }
+            } else {
+                // CASE: Only "playerhead" is provided, use the viewing player's UUID
+                uuid = player.uuid
+            }
+
+            if (uuid != null) {
+                val gameProfile = ShopModule.INSTANCE.server.profileCache?.get(uuid)
+                if (gameProfile != null && gameProfile.isPresent) {
+                    stack.applyComponents(DataComponentPatch.builder()
+                        .set(DataComponents.PROFILE, ResolvableProfile(gameProfile.get()))
+                        .build())
+                }
+            }
+        }
+
+        if (components != null) {
+            DataComponentPatch.CODEC.decode(ShopModule.INSTANCE.nbtOpts, Utils.parseNBT(player, components)).result().ifPresent { result ->
+                stack.applyComponents(result.first)
+            }
+        }
+
+        val dataComponents = DataComponentPatch.builder()
+
+        if (customModelData != null) {
+            dataComponents.set(DataComponents.CUSTOM_MODEL_DATA, CustomModelData(customModelData))
+        }
+
+        if (name != null)
+            dataComponents.set(DataComponents.ITEM_NAME, PlaceholderManager.parse(player, name).asNative())
+
+        if (lore.isNotEmpty()) {
+            val parsedLore: MutableList<String> = mutableListOf()
+            for (line in lore.stream().map { PlaceholderManager.parse(player, it) }.toList()) {
+                if (line.contains("\n")) {
+                    line.split("\n").forEach { parsedLore.add(it) }
+                } else {
+                    parsedLore.add(line)
+                }
+            }
+            dataComponents.set(DataComponents.LORE, ItemLore(
+                parsedLore.stream().map { line ->
+                    Component.empty().withStyle { it.withItalic(false) }
+                        .append(line.asNative())
+                }.toList() as List<Component>
+            ))
+        }
+
+        stack.applyComponents(dataComponents.build())
+
+        return stack
+    }
+
+    override fun toString(): String {
+        return "ItemShopEntry(item=$item) ${super.toString()}"
+    }
+}

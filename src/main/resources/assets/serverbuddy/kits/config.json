@@ -1,0 +1,39 @@
+{
+  "debug": false,
+  "commands": [
+    "skieskits", "kits", "kit"
+  ],
+  "economy": "IMPACTOR",
+  "default_menu": "example_menu",
+  "storage": {
+    "type": "SQLITE",
+    "host": "localhost",
+    "port": 27017,
+    "database":  "skieskits",
+    "username": "root",
+    "password": "",
+    "table_prefix": "skieskits_",
+    "properties": {
+      "useUnicode": true,
+      "characterEncoding": "utf8"
+    },
+    "pool_settings": {
+      "maxiumum_pool_size": 10,
+      "minimum_idle": 10,
+      "keep_alive_time": 0,
+      "connection_timeout": 30000,
+      "idle_timeout": 600000,
+      "max_lifetime": 1800000
+    }
+  },
+  "messages": {
+    "kit_not_found": "<red>Could not find a kit named %kit_name%!",
+    "kit_received": "<green>You have received the kit %kit_name%!",
+    "kit_failed_uses": "<red>You cannot claim the kit %kit_name% because you have reached the max uses!",
+    "kit_failed_cooldown": "<red>You cannot claim the kit %kit_name% because it's still on cooldown for another %kit_cooldown%!",
+    "kit_failed_requirements": "<red>You cannot claim the kit %kit_name% because you have not met the requirements!",
+    "kit_no_permission": "<red>You cannot claim the kit %kit_name% because you do not have permission!",
+    "kit_no_preview": "<red>The kit %kit_name% does not have a preview set up!",
+    "kit_menu_error": "<red>Could not open the kits menu! Please contact an administrator."
+  }
+}

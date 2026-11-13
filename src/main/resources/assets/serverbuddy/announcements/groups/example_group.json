@@ -1,0 +1,82 @@
+{
+  "enabled": true,
+  "interval": 30,
+  "order": "RANDOM",
+  "requirements": {
+    "permission_1": {
+      "type": "PERMISSION",
+      "permission": "test.permission"
+    },
+    "dimension_1": {
+      "type": "DIMENSION",
+      "id": "minecraft:overworld"
+    }
+  },
+  "formatting": [
+    "<red><b>! <red>Announcement <b>>> <gray>%message%"
+  ],
+  "discord": {
+    "default_settings": true,
+    "webhook_url": "",
+    "username": "Username",
+    "avatar_url": "https://i.imgur.com/lFAGX4A.png",
+    "content": "Text message. Up to 2000 characters. %message%",
+    "embeds": [
+      {
+        "author": {
+          "name": "SkiesAnnouncements",
+          "url": "https://www.github.com/pokeskies/skiesannouncements",
+          "icon_url": "https://i.imgur.com/lFAGX4A.png"
+        },
+        "title": "Title",
+        "url": "https://www.github.com/pokeskies/skiesannouncements",
+        "description": "Text message. You can use Markdown here. *Italic* **bold** __underline__ ~~strikeout~~ [hyperlink](https://google.com) `code`",
+        "color": 15258703,
+        "fields": [
+          {
+            "name": "Text",
+            "value": "More text",
+            "inline": true
+          }
+        ],
+        "thumbnail": {
+          "url": "https://i.imgur.com/lFAGX4A.png"
+        },
+        "image": {
+          "url": "https://i.imgur.com/lFAGX4A.png"
+        },
+        "footer": {
+          "text": "Woah! So cool! :smirk:",
+          "icon_url": "https://i.imgur.com/lFAGX4A.png"
+        }
+      }
+    ]
+  },
+  "announcements": {
+    "test": {
+      "message": [
+        "Chat Message Line 1",
+        "Chat Message Line 2",
+        "Chat Message Line 3"
+      ],
+      "title": {
+        "title": "Title Message",
+        "subtitle": "Subtitle Message",
+        "duration": 5,
+        "fade_in": 1,
+        "fade_out": 1
+      },
+      "action_bar": "Action Bar Message",
+      "sound": {
+        "sound": "minecraft:block.note_block.bell",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
+    },
+    "test_2": {
+      "message": [
+        "Chat Message Line 1"
+      ]
+    }
+  }
+}

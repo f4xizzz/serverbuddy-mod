@@ -1,0 +1,26 @@
+package com.f4xizzz.serverbuddy.shop.config
+
+import com.google.gson.annotations.SerializedName
+import com.f4xizzz.serverbuddy.shop.storage.StorageType
+
+class StorageOptions(
+    val type: StorageType = StorageType.JSON,
+    val host: String = "",
+    val port: Int = 3306,
+    val database: String = "skiesshop",
+    val username: String = "root",
+    val password: String = "",
+    @SerializedName("table_prefix")
+    val tablePrefix: String = "skiesshop_",
+    val properties: Map<String, String> = mapOf("useUnicode" to "true", "characterEncoding" to "utf8"),
+    @SerializedName("pool_settings")
+    val poolSettings: PoolSettings = PoolSettings(),
+    @SerializedName("url_override")
+    val urlOverride: String = ""
+) {
+    override fun toString(): String {
+        return "Storage(type=$type, host='$host', port=$port, database='$database', username='$username', " +
+                "password='$password', tablePrefix='$tablePrefix', properties=$properties, " +
+                "poolSettings=$poolSettings, urlOverride='$urlOverride')"
+    }
+}

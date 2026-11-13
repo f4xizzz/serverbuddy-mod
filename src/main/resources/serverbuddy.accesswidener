@@ -1,0 +1,7 @@
+accessWidener	v2	named
+
+# Campos privados do Minecraft que o código dos módulos usa. Antes eles só ficavam acessíveis por causa do
+# access widener do Cobblemon; com o ServerBuddy independente do Cobblemon, o acesso vem daqui.
+
+# Requisitos "advancement" (GUIs e Shop): lê o progresso do jogador num advancement
+accessible field net/minecraft/server/PlayerAdvancements progress Ljava/util/Map;

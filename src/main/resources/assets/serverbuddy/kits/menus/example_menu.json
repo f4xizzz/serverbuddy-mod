@@ -1,0 +1,101 @@
+{
+  "title": "Kits",
+  "type": "GENERIC_9x3",
+  "close_on_claim": true,
+  "click": {
+    "claim": [
+      "ANY_LEFT_CLICK"
+    ],
+    "preview": [
+      "ANY_RIGHT_CLICK"
+    ]
+  },
+  "kits": {
+    "example_kit": {
+      "slots": [10],
+      "available": {
+        "item": "minecraft:diamond",
+        "name": "<green><b>Example Kit",
+        "lore": [
+          "<white><i>My example kit's description!",
+          "",
+          " <gold>- <gray>Uses: <white>%kit_uses%<gray>/<white>%kit_max_uses%",
+          " <gold>- <gray>Cooldown: <white>%kit_cooldown%",
+          " <gold>- <gray>Time Remaining: <white>%kit_time_remaining%",
+          "",
+          "<green><b>AVAILABLE",
+          "",
+          " <gray>- <green>Left-Click to claim this kit",
+          " <gray>- <red>Right-Click to preview this kit"
+        ]
+      },
+      "on_cooldown": {
+        "item": "minecraft:diamond",
+        "name": "<red><b>Example Kit",
+        "lore": [
+          "<white><i>My example kit's description!",
+          "",
+          " <gold>- <gray>Uses: <white>%kit_uses%<gray>/<white>%kit_max_uses%",
+          " <gold>- <gray>Cooldown: <white>%kit_cooldown%",
+          " <gold>- <gray>Time Remaining: <white>%kit_time_remaining%",
+          "",
+          "<red><b>ON COOLDOWN",
+          "",
+          " <gray>- <red>Right-Click to preview this kit"
+        ]
+      },
+      "no_permission": {
+        "item": "minecraft:diamond",
+        "name": "<red><b>Example Kit",
+        "lore": [
+          "<white><i>My example kit's description!",
+          "",
+          " <gold>- <gray>Uses: <white>%kit_uses%<gray>/<white>%kit_max_uses%",
+          " <gold>- <gray>Cooldown: <white>%kit_cooldown%",
+          " <gold>- <gray>Time Remaining: <white>%kit_time_remaining%",
+          "",
+          "<red><b>NO PERMISSION",
+          "",
+          " <gray>- <red>Right-Click to preview this kit"
+        ]
+      },
+      "max_uses": {
+        "item": "minecraft:diamond",
+        "name": "<red><b>Example Kit",
+        "lore": [
+          "<white><i>My example kit's description!",
+          "",
+          " <gold>- <gray>Uses: <white>%kit_uses%<gray>/<white>%kit_max_uses%",
+          " <gold>- <gray>Cooldown: <white>%kit_cooldown%",
+          " <gold>- <gray>Time Remaining: <white>%kit_time_remaining%",
+          "",
+          "<red><b>MAX USES",
+          "",
+          " <gray>- <red>Right-Click to preview this kit"
+        ]
+      },
+      "failed_requirements": {
+        "item": "minecraft:diamond",
+        "name": "<red><b>Example Kit",
+        "lore": [
+          "<white><i>My example kit's description!",
+          "",
+          " <gold>- <gray>Uses: <white>%kit_uses%<gray>/<white>%kit_max_uses%",
+          " <gold>- <gray>Cooldown: <white>%kit_cooldown%",
+          " <gold>- <gray>Time Remaining: <white>%kit_time_remaining%",
+          "",
+          "<red><b>REQUIREMENTS NOT MET",
+          "",
+          " <gray>- <red>Right-Click to preview this kit"
+        ]
+      }
+    }
+  },
+  "items": {
+    "background": {
+      "slots": [0,1,2,3,4,5,6,7,8,9,17,18,19,20,21,22,23,24,25,26],
+      "item": "minecraft:gray_stained_glass_pane",
+      "name": ""
+    }
+  }
+}

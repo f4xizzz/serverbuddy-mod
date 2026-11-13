@@ -1,0 +1,178 @@
+package com.f4xizzz.serverbuddy.kits.config
+
+import com.google.gson.annotations.SerializedName
+import com.f4xizzz.serverbuddy.kits.KitsModule
+import com.f4xizzz.serverbuddy.kits.events.KitClaimedEvent
+import com.f4xizzz.serverbuddy.kits.config.actions.ActionOptions
+import com.f4xizzz.serverbuddy.kits.config.item.KitItem
+import com.f4xizzz.serverbuddy.kits.config.item.MenuItem
+import com.f4xizzz.serverbuddy.kits.config.requirements.RequirementOptions
+import com.f4xizzz.serverbuddy.kits.data.KitData
+import com.f4xizzz.serverbuddy.kits.gui.PreviewGui
+import com.f4xizzz.serverbuddy.kits.utils.Utils
+import com.f4xizzz.serverbuddy.core.SbPermissions as Permissions
+import net.minecraft.server.level.ServerPlayer
+
+class Kit(
+    @SerializedName("display_name")
+    val displayName: String? = null,
+    val permission: String? = null,
+    val cooldown: Long = -1,
+    @SerializedName("max_uses")
+    val maxUses: Int = -1,
+    @SerializedName("on_join")
+    val onJoin: Boolean = false,
+    val notifications: Boolean = true,
+    val items: List<KitItem> = emptyList(),
+    val requirements: RequirementOptions = RequirementOptions(),
+    val actions: ActionOptions = ActionOptions(),
+    val preview: PreviewOptions = PreviewOptions()
+) {
+    @Transient lateinit var id: String
+
+    fun claim(kitId: String, player: ServerPlayer, bypassChecks: Boolean = false, bypassRequirements: Boolean = false, silent: Boolean = false) {
+        Utils.printDebug("Attempting to claim kit $kitId for player ${player.name.string}! BypassChecks=$bypassChecks, BypassRequirements=$bypassRequirements")
+        if (KitsModule.INSTANCE.storage == null) {
+            player.sendMessage(Utils.deserializeText("<red>There was an error with the storage system! Please check the console..."))
+            Utils.printError("Storage system is null! Cannot claim kit $kitId for player ${player.name.string}!")
+            return
+        }
+
+        val userdata = KitsModule.INSTANCE.storage?.getUser(player.uuid)
+
+        if (userdata == null) {
+            player.sendMessage(Utils.deserializeText("<red>There was an error with the storage system! Please check the console..."))
+            Utils.printError("Returned player data is null! Cannot claim kit $kitId for player ${player.name.string}!")
+            return
+        }
+
+        val kitData = if (userdata.kits.containsKey(kitId)) userdata.kits[kitId]!! else KitData()
+
+        if (!bypassChecks) {
+            if (!kitData.canClaimUses(maxUses)) {
+                Utils.printDebug("Player ${player.name.string} has reached the maximum uses for kit $kitId! Kit uses=${kitData.uses} and maxUses=$maxUses")
+                actions.executeUsesActions(player, kitId, this, kitData)
+                if (!silent && notifications) {
+                    player.sendMessage(Utils.deserializeText(
+                        ConfigManager.CONFIG.messages.kitFailedUses
+                            .replace("%kit_name%", getDisplayName(kitId))
+                            .replace("%kit_uses%", kitData.uses.toString())
+                            .replace("%kit_max_uses%", maxUses.toString())
+                    ))
+                }
+                return
+            }
+
+            if (!kitData.canClaimCooldown(cooldown)) {
+                Utils.printDebug("Player ${player.name.string} is still on cooldown for kit $kitId! Kit cooldown=${kitData.getTimeRemaining(cooldown)}")
+                actions.executeCooldownActions(player, kitId, this, kitData)
+                if (!silent && notifications) {
+                    player.sendMessage(
+                        Utils.deserializeText(
+                            ConfigManager.CONFIG.messages.kitFailedCooldown
+                                .replace("%kit_name%", getDisplayName(kitId))
+                                .replace("%kit_cooldown%", Utils.getFormattedTime(kitData.getTimeRemaining(cooldown)))
+                        )
+                    )
+                }
+                return
+            }
+        }
+
+        if (!bypassRequirements) {
+            var success = true
+            for ((_, requirement) in requirements.requirements) {
+                if (requirement.passesRequirements(player, kitId, this, kitData)) {
+                    requirement.executeSuccessActions(player, kitId, this, kitData)
+                } else {
+                    success = false
+                    requirement.executeDenyActions(player, kitId, this, kitData)
+                }
+            }
+
+            if (!success) {
+                Utils.printDebug("Player ${player.name.string} failed the requirements for kit $kitId!")
+                requirements.executeDenyActions(player, kitId, this, kitData)
+                actions.executeRequirementsActions(player, kitId, this, kitData)
+                if (!silent && notifications) {
+                    player.sendMessage(
+                        Utils.deserializeText(
+                            ConfigManager.CONFIG.messages.kitFailedRequirements
+                                .replace("%kit_name%", getDisplayName(kitId))
+                        )
+                    )
+                }
+                return
+            }
+
+            requirements.executeSuccessActions(player, kitId, this, kitData)
+        }
+
+        kitData.uses += 1
+        kitData.lastUse = System.currentTimeMillis()
+        userdata.kits[kitId] = kitData
+
+        if (!KitsModule.INSTANCE.storage!!.saveUser(player.uuid, userdata)) {
+            player.sendMessage(Utils.deserializeText("<red>There was an error with the storage system! Please check the console..."))
+            Utils.printError("Failed to save player data for ${player.name.string} while claiming kit $kitId!")
+            return
+        }
+
+        for (item in items) {
+            item.giveItem(player, kitId, this, kitData)
+        }
+
+        Utils.printDebug("Player ${player.name.string} successfully claimed kit $kitId!")
+
+        try {
+            KitClaimedEvent.EVENT.invoker().onKitClaimed(player, kitId)
+        } catch (e: Exception) {
+            Utils.printError("Error invoking KitClaimedEvent for kit $kitId: ${e.message}")
+        }
+
+        actions.executeClaimedActions(player, kitId, this, kitData)
+
+        if (!silent && notifications) {
+            player.sendMessage(
+                Utils.deserializeText(
+                    ConfigManager.CONFIG.messages.kitReceived
+                        .replace("%kit_name%", getDisplayName(kitId))
+                )
+            )
+        }
+    }
+
+    fun createPreview(player: ServerPlayer): PreviewGui? {
+        return if (preview.id.isNotBlank()) {
+            val previewConfig = ConfigManager.PREVIEWS[preview.id] ?: run {
+                Utils.printError("Kit $displayName references a preview menu with id ${preview.id} but it was not found!")
+                return null
+            }
+            PreviewGui(player, previewConfig, this)
+        } else {
+            null
+        }
+    }
+
+    fun getDisplayName(id: String): String {
+        return if (displayName.isNullOrBlank()) id else displayName
+    }
+
+    fun hasPermission(player: ServerPlayer): Boolean {
+        return if (!permission.isNullOrEmpty()) Permissions.check(player, permission, 2) else true
+    }
+
+    class PreviewOptions(
+        val id: String = "",
+        val extras: List<MenuItem> = emptyList()
+    ) {
+        override fun toString(): String {
+            return "PreviewOptions(id='$id', extras=$extras)"
+        }
+    }
+
+    override fun toString(): String {
+        return "Kit(cooldown=$cooldown, max_uses=$maxUses, on_join=$onJoin, display_name=$displayName, " +
+                "permission=$permission, items=$items, requirements=$requirements, actions=$actions, preview=$preview)"
+    }
+}

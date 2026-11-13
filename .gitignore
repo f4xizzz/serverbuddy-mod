@@ -1,0 +1,19 @@
+build/
+.gradle/
+.idea/
+.vscode/
+.kotlin/
+run/
+out/
+*.iml
+*.log
+hs_err_pid*
+.DS_Store
+
+# historico antigo do GreatServerUtils (backup local; o mesmo commit esta no GitHub)
+.git-GreatServerUtils-antigo/
+
+# testes com bot: o mineflayer fica numa pasta separada (veja bot-tests/README.md)
+bot-tests-lib/
+logs/
+/libs-compile/*.jar

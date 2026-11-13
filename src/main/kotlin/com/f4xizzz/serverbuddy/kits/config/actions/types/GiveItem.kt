@@ -1,0 +1,55 @@
+package com.f4xizzz.serverbuddy.kits.config.actions.types
+
+import com.f4xizzz.serverbuddy.kits.KitsModule
+import com.f4xizzz.serverbuddy.kits.config.Kit
+import com.f4xizzz.serverbuddy.kits.config.actions.Action
+import com.f4xizzz.serverbuddy.kits.config.actions.ActionType
+import com.f4xizzz.serverbuddy.kits.config.requirements.RequirementOptions
+import com.f4xizzz.serverbuddy.kits.data.KitData
+import com.f4xizzz.serverbuddy.kits.utils.Utils
+import eu.pb4.sgui.api.gui.SimpleGui
+import net.minecraft.core.component.DataComponentPatch
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.item.ItemStack
+
+class GiveItem(
+    delay: Long = 0,
+    chance: Double = 0.0,
+    requirements: RequirementOptions? = RequirementOptions(),
+    val item: String = "",
+    val amount: Int = 1,
+    val nbt: CompoundTag? = null
+) : Action(ActionType.GIVE_ITEM, delay, chance, requirements) {
+    override fun executeAction(player: ServerPlayer, kitId: String?, kit: Kit?, kitData: KitData?, gui: SimpleGui?) {
+        val newItem = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(item))
+        if (newItem.isEmpty) {
+            Utils.printDebug("[ACTION - ${type.name}] Failed due to an empty or invalid item ID. Item ID: $item, returned: $newItem")
+            return
+        }
+        val itemStack = ItemStack(newItem.get(), amount)
+
+        val nbtCopy = nbt?.copy()
+
+        if (nbtCopy != null) {
+            DataComponentPatch.CODEC.decode(KitsModule.INSTANCE.nbtOpts, nbtCopy).result().ifPresent { result ->
+                itemStack.applyComponents(result.first)
+            }
+        }
+
+        Utils.printDebug("[ACTION - ${type.name}] Player(${player.gameProfile.name}), ItemStack(${itemStack}: $this")
+
+        KitsModule.INSTANCE.server.let { server ->
+            server.executeIfPossible {
+                player.addItem(itemStack)
+            }
+        }
+    }
+
+    override fun toString(): String {
+        return "GiveItem(item=$item, amount=$amount, nbt=$nbt)"
+    }
+
+}

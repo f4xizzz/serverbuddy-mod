@@ -1,0 +1,112 @@
+package com.f4xizzz.serverbuddy.shop.utils
+
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
+import com.google.gson.annotations.SerializedName
+import com.f4xizzz.serverbuddy.shop.ShopModule
+import net.minecraft.core.component.DataComponentMap
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.item.ItemStack
+import java.lang.reflect.Type
+import kotlin.jvm.optionals.getOrNull
+
+object ItemCompareUtils {
+    // Check if the stacks are equal based on the strictness level provided (ignores quantity)
+    fun matches(player: ServerPlayer, a: ItemStack, b: ItemStack, comparison: ComparisonOption): Boolean {
+        if (a.isEmpty && b.isEmpty) return true
+        if (a.item != b.item) return false
+
+        comparison.antiComponents?.let { tag ->
+            try {
+                val mapResult = DataComponentMap.CODEC.decode(ShopModule.INSTANCE.nbtOpts, Utils.parseNBT(player, tag)).result().getOrNull()
+                if (mapResult != null) {
+                    val componentMap = mapResult.first
+                    val bComponents = b.components
+
+                    for (component in componentMap) {
+                        if (bComponents.contains(component)) {
+                            Utils.printDebug("Component $component from ANTI_COMPONENTS found in B, item is not a match!")
+                            return false
+                        }
+                    }
+                    return@let
+                }
+            } catch (e: Exception) {
+                Utils.printError("There was an error while parsing the anti_components for an item comparison: ${e.message}")
+            }
+        }
+
+        when (comparison.mode) {
+            ComparisonMode.TYPE -> return true
+            ComparisonMode.CONTAINS -> {
+                val aComponents = a.componentsPatch.split().added()
+                val bComponents = b.components
+
+                for (component in aComponents) {
+                    if (!bComponents.contains(component)) {
+                        return false
+                    }
+                }
+            }
+            ComparisonMode.EXACT -> {
+                val aComponents = a.components
+                val bComponents = b.components
+
+                // if they aint the same size, they aint a match!
+                if (aComponents.size() != bComponents.size()) return false
+
+                return aComponents == bComponents
+            }
+        }
+
+
+        return true
+    }
+
+    class ComparisonOption(
+        val mode: ComparisonMode = ComparisonMode.TYPE,
+        @SerializedName("anti_components")
+        val antiComponents: CompoundTag? = null,
+    ) {
+        override fun toString(): String {
+            return "ComparisonOption(mode=$mode, anti_components=$antiComponents)"
+        }
+    }
+
+    enum class ComparisonMode {
+        TYPE, // Item Types just need to be equal
+        CONTAINS, // Components on A must be on B, but B may have extras
+        EXACT; // A must match B exactly (all components the same)
+
+        companion object {
+            fun valueOfAnyCase(name: String): ComparisonMode? {
+                for (type in ComparisonMode.entries) {
+                    if (name.equals(type.name, true)) return type
+                }
+                return null
+            }
+        }
+
+        internal class Adapter: JsonSerializer<ComparisonMode>, JsonDeserializer<ComparisonMode> {
+            override fun serialize(src: ComparisonMode, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
+                return JsonPrimitive(src.name)
+            }
+
+            override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ComparisonMode {
+                val comparisonMode = ComparisonMode.valueOfAnyCase(json.asString)
+
+                if (comparisonMode == null) {
+                    Utils.printError("Could not deserialize Strictness Level '${json.asString}', using TYPE as a default!")
+                    return TYPE
+                }
+
+                return comparisonMode
+            }
+        }
+    }
+}

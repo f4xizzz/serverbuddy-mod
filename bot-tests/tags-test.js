@@ -1,0 +1,142 @@
+// Tags: menu de baú (categorias, páginas, equipar/tirar, comprar, bloqueada), comandos de admin, banco e "sem inventário".
+const fs = require('fs');
+const t = require('./lib.js');
+
+const CFG = 'D:/mods/ServerBuddy/run/config/ServerBuddy/Tags/config.json';
+const has = (s, p) => s.some((x) => x.startsWith(p));
+const said = (bot, text) => bot.chatLog.some((m) => m.includes(text));
+const playerArea = (w) => (w.slots || []).slice(w.inventoryStart).filter(Boolean);
+
+(async () => {
+  const name = 'TgBot' + (Date.now() % 100000);
+  console.log('== catálogo padrão');
+  const list = t.rcon('sb tags list');
+  console.log(list.split('\n').slice(1).join(' | '));
+  t.check('4 tags padrão (campeao, mecenas, novato, veterano)', ['campeao', 'mecenas', 'novato', 'veterano'].every((id) => list.includes(id)), list.slice(0, 200));
+
+  const bot = await t.join(name);
+  t.rcon(`op ${name}`, `clear ${name}`);
+  await t.sleep(500);
+
+  console.log('== dar uma tag e abrir /tags');
+  console.log(t.rcon(`sb tags give ${name} campeao`).split('\n').pop());
+  await t.sleep(600);
+  t.check('o jogador foi avisado que ganhou a tag', said(bot, 'ganhou a tag'));
+  let w = await t.openByCommand(bot, '/tags');
+  let title = t.titleOf(w);
+  let s = t.slots(w);
+  console.log('  título: ' + title);
+  console.log('  slots: ' + s.join(' | '));
+  t.check('título "Tags » Todas (1/1)"', /Tags/.test(title) && /Todas/.test(title) && /\(1\/1\)/.test(title), title);
+  t.check('4 tags nos slots 0-3 (campeão, mecenas, novato, veterano)', has(s, '0:gold_ingot') && has(s, '1:amethyst_shard') && has(s, '2:oak_sapling') && has(s, '3:diamond'), s.slice(0, 5).join(' | '));
+  console.log('  campeão:  ' + t.itemText(w.slots[0]));
+  console.log('  mecenas:  ' + t.itemText(w.slots[1]));
+  console.log('  veterano: ' + t.itemText(w.slots[3]));
+  t.check('a que o jogador tem mostra "equipar"', t.itemText(w.slots[0]).includes('equipar'));
+  t.check('a bloqueada mostra "Bloqueada" e a dica', t.itemText(w.slots[1]).includes('Bloqueada') && t.itemText(w.slots[1]).includes('Apoie'));
+  t.check('a à venda mostra o preço', t.itemText(w.slots[3]).includes('Preço') && t.itemText(w.slots[3]).includes('5000'));
+  t.check('botões de categoria: Todas (36), Geral (37), Especiais (38)', has(s, '36:nether_star') && has(s, '37:name_tag') && has(s, '38:nether_star'));
+  t.check('sem página extra e com o botão fechar', !has(s, '45:arrow') && !has(s, '53:arrow') && has(s, '49:barrier'));
+
+  console.log('== equipar e tirar');
+  bot.chatLog.length = 0;
+  w = await t.click(bot, 0);
+  t.check('equipou (mensagem)', said(bot, 'agora usa a tag'));
+  const after = t.rcon(`sb tags list ${name}`);
+  console.log('  ' + after.split('\n').filter((l) => /campeao/.test(l)).join(' | '));
+  t.check('o banco guardou a tag equipada (★)', /★ campeao/.test(after) || /★.*campeao/.test(after), after.slice(0, 160));
+  s = t.slots(w);
+  t.check('a tag em uso mostra "Em uso" e aparece o botão "Tirar a tag" (48)', t.itemText(w.slots[0]).includes('Em uso') && has(s, '48:red_dye'));
+  bot.chatLog.length = 0;
+  w = await t.click(bot, 0);
+  t.check('clicar de novo na tag em uso tira (mensagem)', said(bot, 'tirou a tag'));
+  t.check('o botão "Tirar a tag" some', !has(t.slots(w), '48:red_dye'));
+
+  console.log('== grátis, bloqueada e à venda');
+  bot.chatLog.length = 0;
+  w = await t.click(bot, 2);
+  t.check('"novato" (FREE) equipa sem ninguém dar', said(bot, 'agora usa a tag'));
+  bot.chatLog.length = 0;
+  w = await t.click(bot, 1);
+  t.check('clicar numa bloqueada avisa', said(bot, 'ainda não tem'));
+  bot.chatLog.length = 0;
+  w = await t.click(bot, 3);
+  t.check('comprar pede confirmação (primeiro clique)', said(bot, 'Clique de novo'));
+  bot.chatLog.length = 0;
+  w = await t.click(bot, 3);
+  t.check('segundo clique: sem economia instalada avisa', said(bot, 'economia'), bot.chatLog.join(' | ').slice(0, 150));
+
+  console.log('== categorias');
+  w = await t.click(bot, 38);
+  title = t.titleOf(w);
+  s = t.slots(w);
+  console.log('  título: ' + title + ' | ' + s.slice(0, 3).join(' | '));
+  t.check('a categoria Especiais mostra só campeão e mecenas', /Especiais/.test(title) && has(s, '0:gold_ingot') && has(s, '1:amethyst_shard') && !has(s, '2:oak_sapling'), title + ' | ' + s.slice(0, 4).join(' | '));
+  w = await t.click(bot, 36);
+  t.check('voltar para Todas', /Todas/.test(t.titleOf(w)) && has(t.slots(w), '2:oak_sapling'));
+
+  console.log('== páginas (+40 tags)');
+  const cmds = [];
+  for (let i = 1; i <= 40; i++) cmds.push(`sb tags create tg${String(i).padStart(2, '0')} <gold>[T${i}]`);
+  t.rcon(...cmds);
+  bot.closeWindow(bot.currentWindow);
+  await t.sleep(600);
+  w = await t.openByCommand(bot, '/tags');
+  title = t.titleOf(w);
+  s = t.slots(w);
+  console.log('  título: ' + title);
+  t.check('44 tags / 36 por página = 2 páginas', /\(1\/2\)/.test(title), title);
+  t.check('"próxima" aparece e "anterior" não', has(s, '53:arrow') && !has(s, '45:arrow'));
+  w = await t.click(bot, 53);
+  t.check('página 2', /\(2\/2\)/.test(t.titleOf(w)), t.titleOf(w));
+  t.check('"anterior" aparece na página 2', has(t.slots(w), '45:arrow'));
+  const dels = [];
+  for (let i = 1; i <= 40; i++) dels.push(`sb tags delete tg${String(i).padStart(2, '0')}`);
+  t.rcon(...dels);
+
+  console.log('== a tag equipada sobrevive à saída e volta');
+  bot.quit();
+  await t.sleep(1500);
+  const bot2 = await t.join(name);
+  await t.sleep(800);
+  const again = t.rcon(`sb tags list ${name}`);
+  t.check('depois de sair e entrar a tag continua equipada (novato)', /★ novato/.test(again), again.slice(0, 200));
+
+  console.log('== esconder o inventário de baixo (show_player_inventory)');
+  t.rcon(`give ${name} minecraft:stone 5`, `give ${name} minecraft:dirt 3`);
+  await t.sleep(600);
+  w = await t.openByCommand(bot2, '/tags');
+  const shown = playerArea(w).length;
+  console.log('  itens na parte de baixo com a opção ligada: ' + shown);
+  t.check('com show_player_inventory = true aparecem os itens do jogador', shown >= 2, 'itens=' + shown);
+  bot2.closeWindow(bot2.currentWindow);
+  const original = fs.readFileSync(CFG, 'utf8');
+  let edited = original.replace('"show_player_inventory": true', '"show_player_inventory": false');
+  fs.writeFileSync(CFG, edited);
+  t.rcon('sb tags reload');
+  await t.sleep(500);
+  w = await t.openByCommand(bot2, '/tags');
+  const hidden = playerArea(w).length;
+  console.log('  itens na parte de baixo com a opção desligada: ' + hidden);
+  t.check('com show_player_inventory = false a parte de baixo fica vazia', hidden === 0, 'itens=' + hidden);
+  t.check('o resto do menu continua igual', t.slots(w).length > 0);
+  bot2.closeWindow(bot2.currentWindow);
+  edited = original.replace('"show_player_inventory": true', '"show_player_inventory": false').replace('"player_inventory_filler": null', '"player_inventory_filler": { "item": "minecraft:black_stained_glass_pane", "name": " ", "hide_tooltip": true }');
+  fs.writeFileSync(CFG, edited);
+  t.rcon('sb tags reload');
+  await t.sleep(500);
+  w = await t.openByCommand(bot2, '/tags');
+  const filled = playerArea(w).filter((i) => i.name === 'black_stained_glass_pane').length;
+  console.log('  vidros na parte de baixo com filler: ' + filled);
+  t.check('com "player_inventory_filler" a parte de baixo vira vidro (36 espaços)', filled === 36, 'vidros=' + filled);
+  bot2.closeWindow(bot2.currentWindow);
+  fs.writeFileSync(CFG, original);
+  t.rcon('sb tags reload');
+
+  console.log('== config check');
+  console.log(t.rcon('sb config check').split('\n').slice(0, 4).join(' | '));
+  t.rcon(`sb tags take ${name} campeao`, `sb tags unequip ${name}`, `clear ${name}`);
+  bot2.quit();
+  await t.sleep(500);
+  process.exit(process.exitCode || 0);
+})().catch((e) => { console.log('ERRO NO TESTE: ' + (e && e.stack || e)); process.exit(2); });

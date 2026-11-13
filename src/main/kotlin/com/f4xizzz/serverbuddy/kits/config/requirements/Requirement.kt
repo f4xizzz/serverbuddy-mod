@@ -1,0 +1,47 @@
+package com.f4xizzz.serverbuddy.kits.config.requirements
+
+import com.google.gson.annotations.SerializedName
+import com.f4xizzz.serverbuddy.kits.config.Kit
+import com.f4xizzz.serverbuddy.kits.config.actions.Action
+import com.f4xizzz.serverbuddy.kits.data.KitData
+import com.f4xizzz.serverbuddy.kits.utils.Utils
+import net.minecraft.server.level.ServerPlayer
+
+abstract class Requirement(
+    val type: RequirementType? = null,
+    val comparison: ComparisonType = ComparisonType.EQUALS,
+    @SerializedName("deny_actions")
+    val denyActions: Map<String, Action> = emptyMap(),
+    @SerializedName("success_actions")
+    val successActions: Map<String, Action> = emptyMap()
+) {
+    abstract fun passesRequirements(player: ServerPlayer, kitId: String, kit: Kit, kitData: KitData): Boolean
+
+    open fun allowedComparisons(): List<ComparisonType> {
+        return emptyList()
+    }
+
+    fun checkComparison(): Boolean {
+        if (!allowedComparisons().contains(comparison)) {
+            Utils.printError("Error while executing a Requirement check! Comparison ${comparison.identifier} is not allowed: ${allowedComparisons().map { it.identifier }}")
+            return false
+        }
+        return true
+    }
+
+    fun executeSuccessActions(player: ServerPlayer, kitId: String, kit: Kit, kitData: KitData) {
+        for ((id, action) in successActions) {
+            action.attemptExecution(player, kitId, kit, kitData)
+        }
+    }
+
+    fun executeDenyActions(player: ServerPlayer, kitId: String, kit: Kit, kitData: KitData) {
+        for ((id, action) in denyActions) {
+            action.attemptExecution(player, kitId, kit, kitData)
+        }
+    }
+
+    override fun toString(): String {
+        return "Requirement(type=$type, comparison=$comparison, denyActions=$denyActions, successActions=$successActions)"
+    }
+}

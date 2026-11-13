@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.f4xizzz.serverbuddy.mixin.portals",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "NetherPortalBlockMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

@@ -1,0 +1,58 @@
+{
+	"schemaVersion": 1,
+	"id": "serverbuddy",
+	"version": "${version}",
+	"name": "ServerBuddy",
+	"description": "ServerBuddy: ferramentas para donos de servidor — kits, loja, caixas, menus (GUIs), anúncios, limpeza, eventos, resgates, storage de recompensas, logs, MOTD por situação, tags em menu, trivia, missões (com missões globais), passe de batalha, essentials (casas, warps, tpa, moderação, formato do chat...), gerenciador de chat, bloqueio de comandos e entrada em claims do Flan por permissão ou tag. Com o Cobblemon instalado, liga também caçadas, bosses, áreas de captura, combo de captura, Pokédex, editor de Pokémon, fichas (Shiny, Sexo e Shiny Ball), /pokesee, /compsee e a blacklist de golpes.",
+	"authors": [
+		"F4xizzz"
+	],
+	"contributors": [
+		"PokeSkies (Stampede e colaboradores): código dos módulos GUIs, Kits, Shop, Crates, Announcements e Clear"
+	],
+	"license": [
+		"MPL-2.0",
+		"Apache-2.0",
+		"CC0-1.0"
+	],
+	"contact": {
+		"homepage": "https://servebuddy.site"
+	},
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.f4xizzz.serverbuddy.ServerBuddy"
+		]
+	},
+	"accessWidener": "serverbuddy.accesswidener",
+	"mixins": [
+		"serverbuddy.mixins.json",
+		"serverbuddy.crates.mixins.json",
+		"serverbuddy.motd.mixins.json",
+		"serverbuddy.blacklist.mixins.json",
+		"serverbuddy.flan.mixins.json",
+		"serverbuddy.portals.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.3",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-language-kotlin": ">=1.11.0",
+		"placeholder-api": "*"
+	},
+	"recommends": {
+		"flan": "*",
+		"styled-sidebars": "*"
+	},
+	"suggests": {
+		"cobblemon": ">=1.8.0",
+		"holodisplays": "*",
+		"luckperms": "*",
+		"impactor": "*",
+		"miniplaceholders": "*"
+	},
+	"breaks": {
+		"cobblemon": "<1.8.0"
+	}
+}

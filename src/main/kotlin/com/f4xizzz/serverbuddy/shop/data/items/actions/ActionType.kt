@@ -1,0 +1,44 @@
+package com.f4xizzz.serverbuddy.shop.data.items.actions
+
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.external.Molang
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.Back
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.CloseShop
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.CommandConsole
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.CommandPlayer
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.FirstPage
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.LastPage
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.MessageBroadcast
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.MessagePlayer
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.NextPage
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.OpenShop
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.PlaySound
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.PreviousPage
+import com.f4xizzz.serverbuddy.shop.data.items.actions.types.internal.Refresh
+
+enum class ActionType(val identifier: String, val clazz: Class<out Action>) {
+    COMMAND_CONSOLE("command_console", CommandConsole::class.java),
+    COMMAND_PLAYER("command_player", CommandPlayer::class.java),
+    MESSAGE("message", MessagePlayer::class.java),
+    BROADCAST("broadcast", MessageBroadcast::class.java),
+    OPEN_SHOP("open_shop", OpenShop::class.java),
+    CLOSE_SHOP("close_shop", CloseShop::class.java),
+    NEXT_PAGE("next_page", NextPage::class.java),
+    PREVIOUS_PAGE("previous_page", PreviousPage::class.java),
+    LAST_PAGE("last_page", LastPage::class.java),
+    FIRST_PAGE("first_page", FirstPage::class.java),
+    BACK("back", Back::class.java),
+    PLAY_SOUND("play_sound", PlaySound::class.java),
+    REFRESH("refresh", Refresh::class.java),
+
+    // Extensions
+    MOLANG("molang", Molang::class.java);
+
+    companion object {
+        fun valueOfAnyCase(name: String): ActionType? {
+            for (type in entries) {
+                if (name.equals(type.identifier, true)) return type
+            }
+            return null
+        }
+    }
+}
