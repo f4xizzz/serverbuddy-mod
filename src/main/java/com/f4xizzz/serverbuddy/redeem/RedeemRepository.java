@@ -8,8 +8,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -187,6 +189,58 @@ public class RedeemRepository {
          }
 
       });
+   }
+
+   /** One redemption as the database has it: who and when (epoch seconds). */
+   public record Claim(UUID player, long at) {
+   }
+
+   /** Who redeemed [code] and when, newest first (at most 1000). */
+   public static List<Claim> claimsOf(String code) {
+      List<Claim> result = new ArrayList<>();
+      String sql = "SELECT player_uuid, redeemed_at FROM redeem_claims WHERE code = ? ORDER BY redeemed_at DESC LIMIT 1000";
+
+      try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+         pstmt.setString(1, code);
+         try (ResultSet rs = pstmt.executeQuery()) {
+            while(rs.next()) {
+               result.add(new Claim(UUID.fromString(rs.getString("player_uuid")), rs.getLong("redeemed_at")));
+            }
+         }
+      } catch (SQLException | IllegalArgumentException e) {
+         ServerBuddy.LOGGER.error("Could not read the redemptions of '" + code + "'!", e);
+      }
+
+      return result;
+   }
+
+   /** For every code: how many redemptions the database has and the time of the last one (epoch seconds): { count, lastAt }. */
+   public static Map<String, long[]> summary() {
+      Map<String, long[]> result = new HashMap<>();
+      String sql = "SELECT code, COUNT(*), MAX(redeemed_at) FROM redeem_claims GROUP BY code";
+
+      try (Connection conn = DatabaseManager.getConnection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+         while(rs.next()) {
+            result.put(rs.getString(1), new long[]{rs.getLong(2), rs.getLong(3)});
+         }
+      } catch (SQLException e) {
+         ServerBuddy.LOGGER.error("Could not summarize the redemptions!", e);
+      }
+
+      return result;
+   }
+
+   /** Deletes every redemption of [code] (the code was deleted, or its uses were reset for everybody). Returns how many rows went. */
+   public static int deleteAllOf(String code) {
+      String sql = "DELETE FROM redeem_claims WHERE code = ?";
+
+      try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+         pstmt.setString(1, code);
+         return pstmt.executeUpdate();
+      } catch (SQLException e) {
+         ServerBuddy.LOGGER.error("Could not delete the redemptions of '" + code + "'!", e);
+         return 0;
+      }
    }
 
    public static void deleteAsync(UUID playerId, String code) {

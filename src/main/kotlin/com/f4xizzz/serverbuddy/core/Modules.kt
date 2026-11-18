@@ -78,6 +78,7 @@ object Modules {
     fun initAll() {
         ServerHolder.init()
         ServerScheduler.init()
+        ChatPipeline.install()
         RewardService.init()
         ModuleSettings.load()
         Webhooks.load()
@@ -98,6 +99,20 @@ object Modules {
             }
         }
         SbCommands.initializing = "core"
+        try {
+            ConfigAdapters.registerAll()
+        } catch (e: Throwable) {
+            LOGGER.error("Could not list the config files of the Java modules for the dashboard", e)
+        }
+    }
+
+    /** Reloads the running module whose config folder is [folder] (or starts with it, like "Crates/crates"). False when there is none. */
+    @JvmStatic
+    fun reloadFolder(folder: String): Boolean {
+        val top = folder.substringBefore('/')
+        val module = modules.firstOrNull { it.folder.equals(top, ignoreCase = true) && it.id in running } ?: return false
+        module.reload()
+        return true
     }
 
     /** Recarrega as configs de todos os módulos que estão rodando (o liga/desliga só vale depois de reiniciar). */

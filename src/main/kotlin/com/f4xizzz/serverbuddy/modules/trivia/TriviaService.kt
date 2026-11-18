@@ -258,14 +258,27 @@ object TriviaService {
     // ---------------------------------------------------------------- respostas
 
     /** Chamado para cada mensagem do chat. Devolve false para a mensagem NÃO aparecer no chat. */
-    fun onChat(player: ServerPlayer, text: String): Boolean {
-        val current = round ?: return true
-        if (current.claimed.get() || TriviaScores.isMuted(player.uuid)) return true
-        if (!AnswerMatcher.matches(text, current.question.answers, config.matching.typoTolerance)) return true
+    /** O que o chat deve fazer com uma mensagem depois de o trivia olhar para ela. */
+    enum class ChatResult {
+        /** Não era a resposta certa de uma rodada aberta: segue como chat comum. */
+        IGNORED,
+
+        /** Era a resposta certa e vence a rodada; a mensagem aparece no chat. */
+        ANSWER,
+
+        /** Era a resposta certa e vence a rodada; a mensagem NÃO aparece no chat (`hide_correct_answer`). */
+        HIDDEN_ANSWER
+    }
+
+    /** Chamado pela etapa ANSWER do chat ([com.f4xizzz.serverbuddy.core.ChatPipeline]) para cada mensagem pública. */
+    fun onChat(player: ServerPlayer, text: String): ChatResult {
+        val current = round ?: return ChatResult.IGNORED
+        if (current.claimed.get() || TriviaScores.isMuted(player.uuid)) return ChatResult.IGNORED
+        if (!AnswerMatcher.matches(text, current.question.answers, config.matching.typoTolerance)) return ChatResult.IGNORED
         // o primeiro a chegar fica com a rodada; quem chegar junto só é ignorado
-        if (!current.claimed.compareAndSet(false, true)) return true
+        if (!current.claimed.compareAndSet(false, true)) return ChatResult.IGNORED
         wins.add(Win(current, player, System.currentTimeMillis()))
-        return !config.hideCorrectAnswer
+        return if (config.hideCorrectAnswer) ChatResult.HIDDEN_ANSWER else ChatResult.ANSWER
     }
 
     private fun finish(win: Win) {

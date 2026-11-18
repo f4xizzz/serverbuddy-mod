@@ -195,6 +195,7 @@ object DashboardClient {
     }
 
     private fun closeSocket(reason: String) {
+        LiveLogs.setActive(false)
         val ws = socket ?: return
         socket = null
         try {
@@ -243,6 +244,7 @@ object DashboardClient {
         override fun onClose(webSocket: WebSocket, statusCode: Int, reason: String?): CompletionStage<*>? {
             if (socket !== webSocket) return null
             socket = null
+            LiveLogs.setActive(false)
             scheduleReconnect()
             return null
         }
@@ -250,6 +252,7 @@ object DashboardClient {
         override fun onError(webSocket: WebSocket, error: Throwable) {
             if (socket !== webSocket) return
             socket = null
+            LiveLogs.setActive(false)
             LOGGER.warn("[Dashboard] Connection error: {}", error.toString())
             scheduleReconnect()
         }
@@ -279,6 +282,8 @@ object DashboardClient {
                 if (was) AdminNotices.broadcast("<yellow><bold>[ServerBuddy]</bold> Dashboard disconnected: ${reasonText(reason)}.")
             }
             "request" -> handleRequest(message)
+            // which live topics somebody is watching right now (the site sends the whole list every time it changes)
+            "topics" -> LiveLogs.setActive(message.getAsJsonArray("topics")?.any { it.asString == LiveLogs.TOPIC } == true)
         }
     }
 
@@ -313,7 +318,7 @@ object DashboardClient {
             try {
                 respond(id, DashboardProviders.handle(server, method, params, by), null, null)
             } catch (e: DashboardError) {
-                respond(id, null, e.code, e.message?.takeIf { it != e.code })
+                respond(id, null, e.code, e.message?.takeIf { it != e.code }?.let(ConfigSecrets::redactEverywhere))
             } catch (e: Throwable) {
                 LOGGER.error("[Dashboard] Error handling '{}'", method, e)
                 respond(id, null, "error", e.javaClass.simpleName)
@@ -337,11 +342,21 @@ object DashboardClient {
         })
     }
 
-    // ------------------------------------------------------------------ telemetry (pushed every 5 s while linked)
+    // ------------------------------------------------------------------ pushed events: telemetry (every 5 s) and live logs (every 0.5 s, only while watched)
 
     private fun startTelemetry() {
         if (telemetryStarted) return
         telemetryStarted = true
+        scheduler.scheduleWithFixedDelay({
+            if (!linked || socket == null || !LiveLogs.active) return@scheduleWithFixedDelay
+            val batch = LiveLogs.drain()
+            if (batch.isEmpty()) return@scheduleWithFixedDelay
+            send(JsonObject().apply {
+                addProperty("type", "event")
+                addProperty("topic", LiveLogs.TOPIC)
+                add("data", LiveLogs.toJson(batch))
+            })
+        }, 500, 500, TimeUnit.MILLISECONDS)
         scheduler.scheduleWithFixedDelay({
             if (!linked || socket == null) return@scheduleWithFixedDelay
             val server = ServerHolder.server ?: return@scheduleWithFixedDelay

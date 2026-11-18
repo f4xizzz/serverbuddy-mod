@@ -152,17 +152,68 @@ internal class SlotsAdapter : TypeAdapter<List<Int>>() {
 object ConfigFiles {
     private val LOGGER = LoggerFactory.getLogger("ServerBuddy")
 
-    /** Um arquivo de config conhecido (para o `/serverbuddy config check`). */
-    class Entry(val folder: String, val fileName: String, val type: Class<*>, val defaults: () -> Any) {
+    /**
+     * A config file known to the mod. [tracked] files are checked by `/serverbuddy config check` and completed by `update`; every entry is
+     * listed (and edited) by the dashboard. [reload] applies the file again after a save (null = the whole module is reloaded). [gson] is the
+     * Gson of the code that reads the file (a module with Minecraft types in its config brings its own adapters).
+     */
+    class Entry(
+        val folder: String,
+        val fileName: String,
+        val type: Class<*>,
+        val defaults: () -> Any,
+        val reload: (() -> Unit)? = null,
+        val gson: Gson = SbGson.gson,
+        val tracked: Boolean = true
+    ) {
         val file: File get() = File(dir(folder), fileName)
         val label: String get() = "$folder/$fileName"
+
+        /** Writes the defaults, nulls included, so the admin sees every option. */
+        val defaultsWriter: Gson by lazy { gson.newBuilder().setPrettyPrinting().serializeNulls().create() }
     }
 
+    private class Collection(val folder: String, val extension: String, val type: Class<*>, val gson: Gson, val reload: (() -> Unit)?, val defaults: () -> Any)
+
     private val registry = LinkedHashMap<String, Entry>()
+    private val collections = ArrayList<Collection>()
 
-    fun dir(folder: String): File = ModPaths.subDir(folder)
+    /** `config/ServerBuddy`. The unit tests point it at a temporary folder, so they do not need the game. */
+    @Volatile
+    internal var baseDir: () -> File = { ModPaths.subDir() }
 
-    fun entries(): List<Entry> = registry.values.toList()
+    fun dir(folder: String): File = File(baseDir(), folder)
+
+    /** Forgets every registered file and folder (unit tests only). */
+    internal fun resetForTests() {
+        registry.clear()
+        collections.clear()
+    }
+
+    /** Every file the dashboard can edit: the registered ones and the files inside the registered folders. */
+    fun entries(): List<Entry> {
+        val all = LinkedHashMap<String, Entry>(registry)
+        for (collection in collections) {
+            val files = File(baseDir(), collection.folder).listFiles { f -> f.isFile && f.name.endsWith(collection.extension) }?.sortedBy { it.name } ?: continue
+            for (file in files) {
+                all.putIfAbsent("${collection.folder}/${file.name}", Entry(collection.folder, file.name, collection.type, collection.defaults, collection.reload, collection.gson, false))
+            }
+        }
+        return all.values.toList()
+    }
+
+    /** The files `/serverbuddy config check` and `update` look at. */
+    fun tracked(): List<Entry> = registry.values.filter { it.tracked }
+
+    /** Lists, for the dashboard, a file that its own module loads (the Java `*ConfigManager`s, the ported modules). Not part of `config check`. */
+    fun register(folder: String, fileName: String, type: Class<*>, gson: Gson = SbGson.gson, reload: (() -> Unit)? = null, defaults: () -> Any) {
+        registry["$folder/$fileName"] = Entry(folder, fileName, type, defaults, reload, gson, false)
+    }
+
+    /** Lists every [extension] file inside [folder] (content the admin adds files to: kits, crates, pools...). New files show up on their own. */
+    fun collection(folder: String, type: Class<*>, extension: String = ".json", gson: Gson = SbGson.gson, reload: (() -> Unit)? = null, defaults: () -> Any) {
+        collections += Collection(folder, extension, type, gson, reload, defaults)
+    }
 
     /**
      * [track] = false para arquivos que o usuário cria à vontade (as pools de trivia e as categorias de missões):

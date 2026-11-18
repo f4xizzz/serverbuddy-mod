@@ -17,7 +17,6 @@ import java.util.Locale
  */
 object ProProviders {
     fun register() {
-        DashboardProviders.register("players.pc") { ctx -> cobblemon { CobblemonView.pc(ctx.server, PlusProviders.who(ctx).uuid) } }
         DashboardProviders.register("pokemon.give") { ctx -> cobblemon { CobblemonView.give(PlusProviders.online(ctx), ctx.string("properties")) } }
         DashboardProviders.register("pokemon.remove") { ctx ->
             cobblemon { CobblemonView.remove(PlusProviders.online(ctx), ctx.string("where"), ctx.int("box", 0), ctx.int("slot", 0)) }
@@ -41,12 +40,33 @@ object ProProviders {
         DashboardProviders.register("luckperms.set") { ctx ->
             luckperms { LuckPermsView.set(PlusProviders.who(ctx).uuid, ctx.string("group"), ctx.string("action")) }
         }
+        DashboardProviders.register("luckperms.group") { ctx -> luckperms { LuckPermsView.group(ctx.server, ctx.string("name")) } }
+        DashboardProviders.register("luckperms.groupCreate") { ctx ->
+            luckperms { LuckPermsView.create(ctx.string("name"), ctx.params.get("weight")?.takeIf { it.isJsonPrimitive }?.asString?.toIntOrNull()) }
+        }
+        DashboardProviders.register("luckperms.groupDelete") { ctx -> luckperms { LuckPermsView.delete(ctx.string("name"), confirmed(ctx)) } }
+        DashboardProviders.register("luckperms.groupUpdate") { ctx -> luckperms { LuckPermsView.update(ctx.string("name"), ctx.params) } }
+        DashboardProviders.register("luckperms.groupParent") { ctx ->
+            luckperms { LuckPermsView.parent(ctx.string("name"), ctx.string("parent"), ctx.string("action")) }
+        }
+        DashboardProviders.register("luckperms.groupNode") { ctx ->
+            luckperms {
+                LuckPermsView.node(
+                    ctx.string("name"), ctx.string("key"), ctx.params.get("value")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: true, ctx.string("action"),
+                    ctx.params.get("expiresInSeconds")?.takeIf { it.isJsonPrimitive }?.asString?.toLongOrNull(),
+                    ctx.stringOrNull("server"), ctx.stringOrNull("world"), confirmed(ctx)
+                )
+            }
+        }
     }
 
     private inline fun <T> cobblemon(block: () -> T): T {
         if (!Integrations.cobblemon()) throw DashboardError("needs_cobblemon")
         return block()
     }
+
+    /** Dangerous actions only run when the request says `confirm: true` (the dashboard asks the person first). */
+    private fun confirmed(ctx: Ctx): Boolean = ctx.params.get("confirm")?.let { it.isJsonPrimitive && it.asBoolean } == true
 
     private inline fun <T> luckperms(block: () -> T): T {
         if (!Integrations.isLoaded("luckperms")) throw DashboardError("needs_luckperms")

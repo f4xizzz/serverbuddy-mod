@@ -128,7 +128,7 @@ object CoreCommands {
                     .executes { update(it, null) }
                     .then(
                         Commands.argument("arquivo", StringArgumentType.greedyString())
-                            .suggests { _, builder -> SharedSuggestionProvider.suggest(ConfigFiles.entries().map { it.label }, builder) }
+                            .suggests { _, builder -> SharedSuggestionProvider.suggest(ConfigFiles.tracked().map { it.label }, builder) }
                             .executes { update(it, StringArgumentType.getString(it, "arquivo")) }
                     )
             )
@@ -170,7 +170,7 @@ object CoreCommands {
     private fun check(ctx: CommandContext<CommandSourceStack>): Int {
         val source = ctx.source
         var pending = 0
-        for (entry in ConfigFiles.entries()) {
+        for (entry in ConfigFiles.tracked()) {
             val missing = ConfigFiles.missing(entry)
             when {
                 missing == null -> Texts.reply(source, "<gray>? <white>${Texts.escape(entry.label)}</white> <gray>(file not found or unreadable)")
@@ -192,7 +192,7 @@ object CoreCommands {
     private fun update(ctx: CommandContext<CommandSourceStack>, only: String?): Int {
         val source = ctx.source
         var changed = 0
-        for (entry in ConfigFiles.entries()) {
+        for (entry in ConfigFiles.tracked()) {
             if (only != null && !entry.label.equals(only.trim(), ignoreCase = true)) continue
             val added = ConfigFiles.update(entry) ?: continue
             if (added.isNotEmpty()) {

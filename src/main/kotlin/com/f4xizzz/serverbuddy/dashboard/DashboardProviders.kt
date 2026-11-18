@@ -33,14 +33,22 @@ object DashboardProviders {
     /** Method → minimum plan (the same table as DASHBOARD_METHODS in the site's shared/constants.js). */
     private val REQUIRED = mapOf(
         "overview.get" to "basic", "logs.tail" to "basic", "config.list" to "basic", "config.get" to "basic", "config.schema" to "basic",
-        "config.save" to "plus", "config.reload" to "plus", "players.list" to "plus", "players.get" to "plus", "players.inventory" to "plus",
+        "config.search" to "basic", "config.history" to "basic", "config.save" to "plus", "config.reload" to "plus", "config.validate" to "plus", "config.restore" to "plus",
+        "redeem.list" to "plus", "redeem.get" to "plus", "redeem.validate" to "plus", "redeem.save" to "plus", "redeem.delete" to "plus", "redeem.reset" to "plus",
+        "tags.list" to "plus", "tags.get" to "plus", "tags.player" to "plus", "tags.give" to "plus", "tags.remove" to "plus", "tags.equip" to "plus",
+        "tags.validate" to "plus", "tags.save" to "plus", "tags.delete" to "plus", "players.list" to "plus", "players.get" to "plus", "players.inventory" to "plus",
         "players.party" to "plus", "players.dex" to "plus", "tops.list" to "plus", "tops.get" to "plus", "audit.list" to "plus",
-        "players.pc" to "pro", "pokemon.give" to "pro", "pokemon.remove" to "pro", "pokemon.move" to "pro", "console.run" to "pro",
-        "luckperms.groups" to "pro", "luckperms.player" to "pro", "luckperms.set" to "pro"
+        "players.enderchest" to "plus", "players.pc" to "plus", "pokemon.give" to "pro", "pokemon.remove" to "pro", "pokemon.move" to "pro", "console.run" to "pro",
+        "luckperms.groups" to "pro", "luckperms.player" to "pro", "luckperms.set" to "pro", "luckperms.group" to "pro", "luckperms.groupCreate" to "pro",
+        "luckperms.groupDelete" to "pro", "luckperms.groupUpdate" to "pro", "luckperms.groupParent" to "pro", "luckperms.groupNode" to "pro"
     )
 
     /** The methods that CHANGE something on the server: they go to the audit log and to the admins' chat. */
-    val MUTATIONS: Set<String> = setOf("config.save", "config.reload", "pokemon.give", "pokemon.remove", "pokemon.move", "console.run", "luckperms.set")
+    val MUTATIONS: Set<String> = setOf(
+        "config.save", "config.reload", "config.restore", "redeem.save", "redeem.delete", "redeem.reset", "tags.give", "tags.remove", "tags.equip", "tags.save",
+        "tags.delete", "pokemon.give", "pokemon.remove", "pokemon.move", "console.run", "luckperms.set", "luckperms.groupCreate", "luckperms.groupDelete",
+        "luckperms.groupUpdate", "luckperms.groupParent", "luckperms.groupNode"
+    )
 
     private val handlers = LinkedHashMap<String, (Ctx) -> JsonElement>()
 
@@ -81,16 +89,38 @@ object DashboardProviders {
         val handler = handlers[method] ?: throw DashboardError("not_implemented")
         val ctx = Ctx(server, params, by)
         val result = handler(ctx)
-        if (method in MUTATIONS) record(by, method, summary(method, params))
+        // a save the mod refused (the answer says ok = false) changed nothing: it is not an action to record
+        val refused = result is JsonObject && result.get("ok")?.let { it.isJsonPrimitive && !it.asBoolean } == true
+        if (method in MUTATIONS && !refused) record(by, method, summary(method, params, result))
         return result
     }
 
     /** A short, safe description for the audit log (never the whole command or config values). */
-    private fun summary(method: String, params: JsonObject): String = when (method) {
-        "config.save", "config.reload" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/")
+    private fun summary(method: String, params: JsonObject, result: JsonElement): String = when (method) {
+        "config.save" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/") + changedPaths(result)
+        "config.restore" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/") + " <- " + (params.get("backup")?.asString ?: "")
+        "config.reload" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/")
         "console.run" -> params.get("command")?.asString?.substringBefore(' ')?.take(32) ?: ""
+        "redeem.save" -> (params.get("code")?.asString ?: "") + changedPaths(result)
+        "redeem.delete" -> params.get("code")?.asString ?: ""
+        "redeem.reset" -> (params.get("code")?.asString ?: "") + " <- " + (params.get("player")?.asString ?: "everybody")
+        "tags.give", "tags.remove", "tags.equip" -> (params.get("player")?.asString ?: "") + " " + (params.get("tag")?.asString ?: "(none)")
+        "tags.save" -> (params.get("id")?.asString ?: "") + changedPaths(result)
+        "tags.delete" -> params.get("id")?.asString ?: ""
+        "luckperms.groupCreate", "luckperms.groupDelete" -> params.get("name")?.asString ?: ""
+        "luckperms.groupUpdate" -> (params.get("name")?.asString ?: "") + " [" + listOf("weight", "displayName", "prefix", "suffix").filter { params.has(it) }.joinToString(", ") + "]"
+        "luckperms.groupParent" -> (params.get("name")?.asString ?: "") + " " + (params.get("action")?.asString ?: "") + " " + (params.get("parent")?.asString ?: "")
+        "luckperms.groupNode" -> (params.get("name")?.asString ?: "") + ": " + (params.get("action")?.asString ?: "") + " " + (params.get("key")?.asString ?: "")
         "pokemon.give", "pokemon.remove", "pokemon.move", "luckperms.set" -> params.get("player")?.asString ?: ""
         else -> ""
+    }
+
+    /** " [a.b, c.d +3]": the options a config save changed (names only, never the values). */
+    private fun changedPaths(result: JsonElement): String {
+        val changes = (result as? JsonObject)?.getAsJsonArray("changes") ?: return ""
+        if (changes.size() == 0) return " [no changes]"
+        val paths = changes.take(5).map { it.asJsonObject.get("path").asString }
+        return " [" + paths.joinToString(", ") + (if (changes.size() > 5) " +" + (changes.size() - 5) else "") + "]"
     }
 
     private fun record(by: String, method: String, summary: String) {

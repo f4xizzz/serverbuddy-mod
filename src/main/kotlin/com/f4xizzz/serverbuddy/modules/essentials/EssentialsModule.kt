@@ -1,5 +1,6 @@
 package com.f4xizzz.serverbuddy.modules.essentials
 
+import com.f4xizzz.serverbuddy.core.ChatPipeline
 import com.f4xizzz.serverbuddy.core.ConfigFiles
 import com.f4xizzz.serverbuddy.core.Integrations
 import com.f4xizzz.serverbuddy.core.SbCommands
@@ -9,7 +10,6 @@ import com.f4xizzz.serverbuddy.core.ServerScheduler
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
-import net.fabricmc.fabric.api.message.v1.ServerMessageEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.minecraft.server.level.ServerPlayer
 import org.slf4j.LoggerFactory
@@ -88,9 +88,11 @@ class EssentialsModule : SbModule {
             Styling.onLeave(player.uuid)
         }
         ServerLivingEntityEvents.AFTER_DEATH.register { entity, _ -> if (entity is ServerPlayer) Teleports.rememberDeath(entity) }
-        // silenciados não falam, o chat da equipe fica só com a equipe, e falar tira do AFK
-        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register { message, sender, _ ->
+        // silenciados não falam, o chat da equipe fica só com a equipe, e falar tira do AFK. É a primeira etapa do chat (GATE): o que não é
+        // chat público não chega ao trivia, ao gerenciador de chat nem ao formato.
+        ChatPipeline.register(ChatPipeline.Stage.GATE) { chat ->
             if (!ready) return@register true
+            val sender = chat.sender
             AfkService.activity(sender)
             when {
                 ChatService.muteLeft(sender.uuid) > 0 -> {
@@ -98,7 +100,7 @@ class EssentialsModule : SbModule {
                     false
                 }
                 sender.uuid in ChatService.staffChat -> {
-                    ChatCommands.sendStaffChat(sender, message.signedContent())
+                    ChatCommands.sendStaffChat(sender, chat.text)
                     false
                 }
                 else -> true

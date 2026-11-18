@@ -15,12 +15,18 @@ import net.minecraft.commands.Commands
  * operators of the highest level (or the `serverbuddy.admin.dashboard` permission) can link it.
  */
 object DashboardCommands {
-    private const val INVITE = "<green><bold>[ServerBuddy]</bold> The web dashboard is available at servebuddy.site. Run <white>/sb dashboard sync</white> to connect."
+    /** The invitation shown to the admins: the site and the command are clickable (the command is only typed for them, never run). */
+    private fun invite(): String {
+        val url = DashboardBuild.apiBase
+        return "<green><bold>[ServerBuddy]</bold> The web dashboard is available at " +
+            "<click:open_url:'$url'><hover:show_text:'<gray>Click to open the website'><aqua><underlined>${url.substringAfter("://")}</underlined></aqua></hover></click>. " +
+            "Run <click:suggest_command:'/sb dashboard sync'><hover:show_text:'<gray>Click to type the command'><white>/sb dashboard sync</white></hover></click> to connect."
+    }
 
     @JvmStatic
     fun registerNotices() {
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
-            if (server.isDedicatedServer && DashboardSettings.load().enabled) AdminNotices.broadcast(INVITE)
+            if (server.isDedicatedServer && DashboardSettings.load().enabled) AdminNotices.broadcast(invite())
         }
         ServerLifecycleEvents.SERVER_STOPPING.register { DashboardClient.disconnect(announce = false) }
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
@@ -28,7 +34,7 @@ object DashboardCommands {
             if (server.isDedicatedServer && DashboardSettings.get().enabled && !DashboardClient.linked &&
                 SbPermissions.check(player, "serverbuddy.admin.dashboard", 4)
             ) {
-                player.sendSystemMessage(Texts.render(INVITE))
+                player.sendSystemMessage(Texts.render(invite()))
             }
         }
     }
@@ -51,9 +57,11 @@ object DashboardCommands {
                 if (code == null) {
                     Texts.fail(source, "<red>${Texts.escape(error ?: "Unknown error")}")
                 } else {
-                    // The code is shown only to the admin who ran the command (never broadcast).
-                    Texts.reply(source, "<green>Pairing code: <white><bold>${Texts.escape(code)}</bold></white> <gray>(valid for 10 minutes, one use)")
-                    Texts.reply(source, "<gray>Type it in the dashboard at <white>${Texts.escape(DashboardBuild.apiBase)}/dashboard</white>. Sign in with the account you will use for this dashboard.")
+                    // The code is shown only to the admin who ran the command (never broadcast). Clicking the code copies it; clicking the link opens the site.
+                    val safe = Texts.escape(code)
+                    val url = "${DashboardBuild.apiBase}/dashboard"
+                    Texts.reply(source, "<green>Pairing code: <click:copy_to_clipboard:'$safe'><hover:show_text:'<gray>Click to copy the code'><white><bold>[ $safe ]</bold></white></hover></click> <gray>(valid for 10 minutes, one use)")
+                    Texts.reply(source, "<gray>Type it at <click:open_url:'$url'><hover:show_text:'<gray>Click to open the dashboard in your browser'><aqua><underlined>$url</underlined></aqua></hover></click> <gray>and sign in with the account you will use for this dashboard.")
                 }
             }
         }

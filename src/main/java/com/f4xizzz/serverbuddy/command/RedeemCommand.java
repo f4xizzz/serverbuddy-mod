@@ -6,6 +6,7 @@ import com.f4xizzz.serverbuddy.redeem.RedeemConfig;
 import com.f4xizzz.serverbuddy.redeem.RedeemConfigManager;
 import com.f4xizzz.serverbuddy.redeem.RedeemManager;
 import com.f4xizzz.serverbuddy.redeem.RedeemMessages;
+import com.f4xizzz.serverbuddy.redeem.RedeemRules;
 import com.f4xizzz.serverbuddy.storage.StorageService;
 import com.f4xizzz.serverbuddy.util.CommandRunner;
 import com.f4xizzz.serverbuddy.util.MiniMessageUtil;
@@ -28,7 +29,7 @@ public class RedeemCommand {
 
    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
       for(String alias : resolveAliases()) {
-         dispatcher.register((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal(alias).requires((source) -> SbPermissions.check(source, "serverbuddy.redeem.use", 0))).then(Commands.argument("codigo", StringArgumentType.word()).executes(RedeemCommand::executeRedeem)));
+         dispatcher.register((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal(alias).requires((source) -> SbPermissions.check(source, "serverbuddy.redeem.use", 0))).then(Commands.argument("code", StringArgumentType.word()).executes(RedeemCommand::executeRedeem)));
       }
 
    }
@@ -62,40 +63,52 @@ public class RedeemCommand {
          return 0;
       }
 
-      String code = StringArgumentType.getString(context, "codigo");
+      String typed = StringArgumentType.getString(context, "code");
       RedeemConfig config = RedeemConfigManager.getConfig();
-      RedeemMessages messages = config.mensagens;
-      RedeemCode codeDef = (RedeemCode)config.codigos.get(code);
+      RedeemMessages messages = config.messages;
+      String playerName = player.getName().getString();
+      // The name from the config is the one claims are kept under, so "BoasVindas" and "boasvindas" are the same code.
+      String code = RedeemConfigManager.canonicalName(typed);
+      RedeemCode codeDef = code == null ? null : config.codes.get(code);
       if (codeDef == null) {
-         ((CommandSourceStack)context.getSource()).sendSuccess(() -> MiniMessageUtil.parse(fill(messages.codigo_invalido, code)), false);
+         reply(context, RedeemRules.fill(messages.invalidCode, typed, playerName, ""));
          return 0;
-      } else if (codeDef.permissao != null && !codeDef.permissao.isBlank() && !SbPermissions.check((SharedSuggestionProvider)context.getSource(), codeDef.permissao, 2)) {
-         ((CommandSourceStack)context.getSource()).sendSuccess(() -> MiniMessageUtil.parse(fill(messages.sem_permissao_codigo, code)), false);
-         return 0;
-      } else {
-         RedeemManager.RedeemResult result = RedeemManager.redeem(player.getUUID(), code, codeDef.max_usos);
-         switch (result) {
-            case ALREADY_REDEEMED:
-               ((CommandSourceStack)context.getSource()).sendSuccess(() -> MiniMessageUtil.parse(fill(messages.ja_resgatado, code)), false);
-               return 0;
-            case MAX_USES:
-               ((CommandSourceStack)context.getSource()).sendSuccess(() -> MiniMessageUtil.parse(fill(messages.limite_atingido, code)), false);
-               return 0;
-            case SUCCESS:
-               if (!StorageService.deliverRedeem(player, code, codeDef)) {
-                  CommandRunner.runAll(((CommandSourceStack)context.getSource()).getServer(), codeDef.comandos, player.getName().getString());
-               }
+      }
 
-               ((CommandSourceStack)context.getSource()).sendSuccess(() -> MiniMessageUtil.parse(fill(messages.sucesso, code)), false);
-               ServerBuddy.LOGGER.info("[Redeem] {} redeemed the code '{}'.", player.getName().getString(), code);
-               return 1;
-            default:
-               return 0;
-         }
+      String permission = codeDef.permission == null ? "" : codeDef.permission.trim();
+      if (!permission.isEmpty() && !SbPermissions.check((SharedSuggestionProvider)context.getSource(), permission, 2)) {
+         reply(context, RedeemRules.fill(messages.noPermission, code, playerName, permission));
+         ServerBuddy.LOGGER.info("[Redeem] {} was refused the code '{}': it needs the permission '{}'.", playerName, code, permission);
+         return 0;
+      }
+
+      if (RedeemRules.isExpired(RedeemConfigManager.expiryOf(codeDef), System.currentTimeMillis())) {
+         reply(context, RedeemRules.fill(messages.expired, code, playerName, permission));
+         return 0;
+      }
+
+      RedeemManager.RedeemResult result = RedeemManager.redeem(player.getUUID(), code, codeDef.maxUses);
+      switch (result) {
+         case ALREADY_REDEEMED:
+            reply(context, RedeemRules.fill(messages.alreadyRedeemed, code, playerName, permission));
+            return 0;
+         case MAX_USES:
+            reply(context, RedeemRules.fill(messages.usageLimitReached, code, playerName, permission));
+            return 0;
+         case SUCCESS:
+            if (!StorageService.deliverRedeem(player, code, codeDef)) {
+               CommandRunner.runAll(((CommandSourceStack)context.getSource()).getServer(), codeDef.commands, playerName);
+            }
+
+            reply(context, RedeemRules.fill(messages.success, code, playerName, permission));
+            ServerBuddy.LOGGER.info("[Redeem] {} redeemed the code '{}'.", playerName, code);
+            return 1;
+         default:
+            return 0;
       }
    }
 
-   private static String fill(String template, String code) {
-      return template == null ? "" : template.replace("{codigo}", code);
+   private static void reply(CommandContext<CommandSourceStack> context, String miniMessage) {
+      ((CommandSourceStack)context.getSource()).sendSuccess(() -> MiniMessageUtil.parse(miniMessage), false);
    }
 }

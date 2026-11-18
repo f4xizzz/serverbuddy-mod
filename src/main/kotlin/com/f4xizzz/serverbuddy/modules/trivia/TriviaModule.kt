@@ -1,13 +1,15 @@
 package com.f4xizzz.serverbuddy.modules.trivia
 
+import com.f4xizzz.serverbuddy.core.ChatPipeline
 import com.f4xizzz.serverbuddy.core.ConfigFiles
 import com.f4xizzz.serverbuddy.core.Integrations
+import com.f4xizzz.serverbuddy.core.Modules
 import com.f4xizzz.serverbuddy.core.SbCommands
 import com.f4xizzz.serverbuddy.core.SbModule
 import com.f4xizzz.serverbuddy.core.SbPlaceholders
+import com.f4xizzz.serverbuddy.modules.chatguard.ChatGuardService
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
-import net.fabricmc.fabric.api.message.v1.ServerMessageEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import java.io.File
 
@@ -33,7 +35,22 @@ class TriviaModule : SbModule {
         }
         ServerLifecycleEvents.SERVER_STOPPED.register { TriviaService.ready = false }
         ServerTickEvents.END_SERVER_TICK.register { TriviaService.tick() }
-        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register { message, sender, _ -> TriviaService.onChat(sender, message.signedContent()) }
+        // A etapa ANSWER do chat: o trivia vê toda mensagem pública antes do gerenciador de chat e do formato (veja ChatPipeline).
+        ChatPipeline.register(ChatPipeline.Stage.ANSWER) { chat ->
+            // quem está banido do chat não responde (a mensagem dele é barrada na etapa seguinte, com o aviso do ban)
+            if (Modules.isActive("chatguard") && ChatGuardService.isChatBanned(chat.sender)) return@register true
+            when (TriviaService.onChat(chat.sender, chat.text)) {
+                TriviaService.ChatResult.IGNORED -> true
+                TriviaService.ChatResult.ANSWER -> {
+                    chat.answered = true
+                    true
+                }
+                TriviaService.ChatResult.HIDDEN_ANSWER -> {
+                    chat.answered = true
+                    false
+                }
+            }
+        }
         ServerPlayConnectionEvents.JOIN.register { handler, _, _ -> TriviaService.onJoin(handler.player) }
         ServerPlayConnectionEvents.DISCONNECT.register { handler, _ -> TriviaService.onLeave(handler.player) }
         SbCommands.onRegister { dispatcher, _ -> TriviaCommands.register(dispatcher) }

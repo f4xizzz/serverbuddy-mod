@@ -59,6 +59,21 @@ public class RedeemManager {
       }
    }
 
+   /** Forgets every redemption of [code]: everybody can redeem it again. Returns how many players had redeemed it. */
+   public static int resetAll(String code) {
+      int players = 0;
+
+      for(Set<String> codes : CLAIMS_BY_PLAYER.values()) {
+         if (codes.remove(code)) {
+            ++players;
+         }
+      }
+
+      USES_BY_CODE.remove(code);
+      RedeemRepository.deleteAllOf(code);
+      return players;
+   }
+
    public static enum RedeemResult {
       SUCCESS,
       ALREADY_REDEEMED,

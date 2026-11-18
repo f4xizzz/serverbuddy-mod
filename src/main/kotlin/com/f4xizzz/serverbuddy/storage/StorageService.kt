@@ -61,7 +61,7 @@ object StorageService {
         val vars = mapOf("code" to codeName, "player" to player.gameProfile.name)
         if (!ready || !cfg.redeemToStorage) {
             // sem storage: os itens do código vão direto para o inventário; quem chamou roda os comandos
-            for (spec in def.itens.orEmpty()) {
+            for (spec in def.items.orEmpty()) {
                 val stack = spec.build(vars)
                 if (!stack.isEmpty) giveDirect(player, stack)
             }
@@ -72,7 +72,7 @@ object StorageService {
         var created = 0
 
         // o código já foi marcado como usado: se o banco falhar, a recompensa sai direto em vez de se perder
-        for (spec in def.itens.orEmpty()) {
+        for (spec in def.items.orEmpty()) {
             val stack = spec.build(vars)
             if (stack.isEmpty) continue
             if (addItem(player.uuid, stack, source, notify = false)) {
@@ -83,9 +83,9 @@ object StorageService {
             }
         }
 
-        val commands = def.comandos.orEmpty().filter { it.isNotBlank() }
+        val commands = def.commands.orEmpty().filter { it.isNotBlank() }
         if (commands.isNotEmpty()) {
-            val show = def.exibicao
+            val show = def.display
             val spec = CommandRewardSpec(
                 title = Texts.fill(show?.title ?: cfg.messages.redeemTitle, vars),
                 icon = show?.icon,
@@ -100,7 +100,7 @@ object StorageService {
             }
         }
 
-        for (extra in def.entradas.orEmpty()) {
+        for (extra in def.entries.orEmpty()) {
             val extraCommands = extra.commands.filter { it.isNotBlank() }
             if (extraCommands.isEmpty()) continue
             val spec = CommandRewardSpec(

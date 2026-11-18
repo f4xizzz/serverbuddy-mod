@@ -159,6 +159,11 @@ object EssentialsRepository {
 
     fun player(uuid: UUID): PlayerRecord? = run("read player $uuid") { conn -> query(conn, "SELECT * FROM sb_players WHERE player_uuid = ?", uuid.toString()) { record(it) }.firstOrNull() }
 
+    /** When every known player was last seen, in ONE query (the dashboard's player list sorts by it). */
+    fun allLastSeen(): Map<UUID, Long> = run("read when every player was last seen") { conn ->
+        query(conn, "SELECT player_uuid, last_seen FROM sb_players") { rs -> runCatching { UUID.fromString(rs.getString(1)) to rs.getLong(2) }.getOrNull() }.filterNotNull().toMap()
+    } ?: emptyMap()
+
     fun playerByName(name: String): PlayerRecord? = run("look up player $name") { conn -> query(conn, "SELECT * FROM sb_players WHERE LOWER(name) = ?", name.lowercase()) { record(it) }.firstOrNull() }
 
     fun playerByNick(nick: String): PlayerRecord? = run("look up nickname $nick") { conn -> query(conn, "SELECT * FROM sb_players WHERE LOWER(nick) = ?", nick.lowercase()) { record(it) }.firstOrNull() }

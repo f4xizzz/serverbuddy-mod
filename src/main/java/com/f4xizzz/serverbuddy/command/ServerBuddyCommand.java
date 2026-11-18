@@ -1,6 +1,7 @@
 package com.f4xizzz.serverbuddy.command;
 
 import com.f4xizzz.serverbuddy.ServerBuddy;
+import com.f4xizzz.serverbuddy.cobblemon.combo.CatchComboLeaderboardManager;
 import com.f4xizzz.serverbuddy.cobblemon.command.CobblemonAdminCommands;
 import com.f4xizzz.serverbuddy.core.Integrations;
 import com.f4xizzz.serverbuddy.core.Modules;
@@ -95,6 +96,8 @@ public class ServerBuddyCommand {
 
       ServerLevel world = player.serverLevel();
       AABB box = player.getBoundingBox().inflate((double)radius);
+      // The Catch Combo leaderboard hologram is re-created every second from a saved record, so the records inside the radius are deleted first
+      int records = Integrations.cobblemonFeatures() ? CatchComboLeaderboardManager.removeWithin(world, box) : 0;
       List<Display.TextDisplay> found = world.getEntitiesOfClass(Display.TextDisplay.class, box, (entity) -> true);
       int count = found.size();
 
@@ -102,9 +105,10 @@ public class ServerBuddyCommand {
          display.discard();
       }
 
-      ((CommandSourceStack)context.getSource()).sendSuccess(() -> Component.literal("✔ Removidas " + count + " entidades de texto num raio de " + radius + " blocos.").withStyle(new ChatFormatting[]{ChatFormatting.GREEN, ChatFormatting.BOLD}), true);
-      ServerBuddy.LOGGER.info("{} removeu {} TextDisplayEntity num raio de {} blocos via /serverbuddy purgedisplays.", new Object[]{player.getName().getString(), count, radius});
-      return count;
+      String extra = records > 0 ? " Also deleted " + records + " Catch Combo leaderboard hologram record(s), so they will not come back." : "";
+      ((CommandSourceStack)context.getSource()).sendSuccess(() -> Component.literal("✔ Removed " + count + " text displays within " + radius + " blocks." + extra).withStyle(new ChatFormatting[]{ChatFormatting.GREEN, ChatFormatting.BOLD}), true);
+      ServerBuddy.LOGGER.info("{} removed {} text displays and {} Catch Combo leaderboard records within {} blocks via /serverbuddy purgedisplays.", new Object[]{player.getName().getString(), count, records, radius});
+      return count + records;
    }
 
    /** Roda uma recarga e anota o rotulo em [failed] se ela der erro. Usado tambem pelas recargas dos outros pacotes. */

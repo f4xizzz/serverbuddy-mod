@@ -117,7 +117,7 @@ const heard = (bot, re) => bot.sounds.some((s) => re.test(s)) || bot.rawIgnored.
   await t.sleep(400);
   t.check('um nome só como parte de outra palavra não conta', !heard(b, /pling/), JSON.stringify(b.sounds).slice(0, 200));
   out = await say(b, '/notifications', 800);
-  t.check('/notifications mostra os ajustes', /Notificações/.test(out) && /Som: minecraft:block.note_block.pling/.test(out) && /Ligadas: sim/.test(out), flat(out));
+  t.check('/notifications mostra os ajustes', /Notificações|Notifications/.test(out) && /(Som|Sound): minecraft:block.note_block.pling/.test(out) && /(Ligadas|Enabled): (sim|yes)/.test(out), flat(out));
   await say(b, '/notifications toggle', 600);
   b.sounds.length = 0; b.rawIgnored.length = 0;
   await say(a, 'EsB de novo');

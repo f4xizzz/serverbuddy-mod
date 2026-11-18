@@ -13,7 +13,7 @@ const flat = (s) => s.replace(/\n/g, ' | ');
 
 (async () => {
   console.log('== arquivos');
-  t.check('Essentials/config.json criado e explica os grupos', fs.existsSync(DIR + '/config.json') && /GRUPOS/.test(fs.readFileSync(DIR + '/config.json', 'utf8')));
+  t.check('Essentials/config.json criado e explica os grupos', fs.existsSync(DIR + '/config.json') && /GROUPS|GRUPOS/.test(fs.readFileSync(DIR + '/config.json', 'utf8')));
   t.check('messages.json criado com os textos editáveis', fs.existsSync(DIR + '/messages.json') && /"home_set"/.test(fs.readFileSync(DIR + '/messages.json', 'utf8')));
   // deixa os testes mais rápidos
   const cfg = JSON.parse(strip(fs.readFileSync(DIR + '/config.json', 'utf8')));
@@ -214,11 +214,11 @@ const flat = (s) => s.replace(/\n/g, ' | ');
 
   console.log('== equipe: invsee, enderchest, anotações, sudo, restart');
   const inv = await t.openByCommand(a, '/invsee EsB');
-  t.check('/invsee abre o inventário do outro jogador', /Inventário de EsB/.test(t.titleOf(inv)), t.titleOf(inv));
+  t.check('/invsee abre o inventário do outro jogador', /Inventory of EsB|Inventário de EsB/.test(t.titleOf(inv)), t.titleOf(inv));
   a.closeWindow(inv);
   await t.sleep(400);
   const ec = await t.openByCommand(a, '/enderchest EsB');
-  t.check('/enderchest abre o baú do fim do outro', /Baú do Fim de EsB/.test(t.titleOf(ec)), t.titleOf(ec));
+  t.check('/enderchest abre o baú do fim do outro', /Ender Chest of EsB|Baú do Fim de EsB/.test(t.titleOf(ec)), t.titleOf(ec));
   a.closeWindow(ec);
   await t.sleep(400);
   await say(a, '/notes EsB add jogador legal', 800);

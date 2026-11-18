@@ -148,6 +148,12 @@ dependencies {
 		modLocalRuntime name: 'beconomy-1.5'
 	}
 
+	// Para testar permissoes de verdade (grupos, /lp user ... permission set) o servidor de teste precisa do LuckPerms: gradlew runServer -PcomLuckPerms
+	// (so no servidor de teste; nao vai no jar)
+	if (project.hasProperty('comLuckPerms')) {
+		modLocalRuntime 'maven.modrinth:luckperms:v5.4.140-fabric'
+	}
+
 	// jars de outros mods de economia (so a API, para compilar; nao vao no jar)
 	modCompileOnly name: 'pebbles-economy-1.0.0'
 	modCompileOnly name: 'beconomy-1.5'
