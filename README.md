@@ -122,27 +122,33 @@ Um baú de recompensas por jogador. Quando alguém resgata um código com `/rede
 
 ### Códigos de resgate com itens e comandos
 
-Em `Redeem/redeem.conf`, cada código aceita:
+Em `Redeem/redeem.conf`, os códigos ficam em `codes` (o jogador digita o nome, sem diferenciar maiúsculas) e cada um aceita:
 
 ```json
-"verao": {
-  "max_usos": 0,
-  "itens": [
+"summer": {
+  "max_uses": 0,
+  "permission": "vip.codes",
+  "expires_at": "2026-12-31",
+  "items": [
     { "item": "minecraft:diamond", "amount": 2, "name": "<aqua>Diamante do verão", "lore": ["<gray>Código %code%"] },
     { "item": "cobblemon:poke_ball", "amount": 10 }
   ],
-  "comandos": [ "give %player% minecraft:golden_apple 1" ],
-  "exibicao": { "title": "<gold>Maçã do código <yellow>%code%", "icon": "minecraft:golden_apple", "lore": ["<gray>Um presente"] },
-  "entradas": [
+  "commands": [ "give %player% minecraft:golden_apple 1" ],
+  "display": { "title": "<gold>Maçã do código <yellow>%code%", "icon": "minecraft:golden_apple", "lore": ["<gray>Um presente"] },
+  "entries": [
     { "title": "<green>Bônus", "icon": "minecraft:cookie", "lore": ["<gray>5 cookies"], "commands": ["give %player% minecraft:cookie 5"] }
   ]
 }
 ```
 
-- `itens`: cada item vira uma recompensa na aba Itens (mesmos campos do [item editável](#item-editável-o-mesmo-em-todos-os-módulos-novos)).
-- `comandos`: todos juntos viram **uma** recompensa na aba Comandos; `exibicao` define o título, o ícone e a descrição dela.
-- `entradas`: recompensas de comando separadas, cada uma com o seu título, ícone e comandos.
-- Os comandos rodam como console quando o jogador clica; `%player%` é o jogador. Os códigos antigos (só `comandos`) continuam valendo.
+- `max_uses`: quantos jogadores podem resgatar no total (0 = sem limite).
+- `permission`: a permissão que o jogador precisa (LuckPerms, por exemplo `vip.codes` ou `group.vip`). Vazio = todos. Sem um mod de permissões só operadores (nível 2) passam. Quem não tem recebe `messages.no_permission` (e o log do servidor diz qual permissão faltou).
+- `expires_at` (opcional): depois desse momento o código não vale mais (`messages.expired`). Aceita `2026-12-31` (até o fim desse dia), `2026-12-31 18:30` ou `2026-12-31T18:30:00` (no fuso do servidor), `2026-12-31T18:30:00Z` ou `...-03:00` (com o fuso) e um número de segundos desde 1970. Um texto que não dá para ler **bloqueia** o código (e o console avisa), em vez de deixá-lo valer para sempre por engano. `/sb redeem list` mostra a expiração.
+- `items`: cada item vira uma recompensa na aba Itens (mesmos campos do [item editável](#item-editável-o-mesmo-em-todos-os-módulos-novos)).
+- `commands`: todos juntos viram **uma** recompensa na aba Comandos; `display` define o título, o ícone e a descrição dela.
+- `entries`: recompensas de comando separadas, cada uma com o seu título, ícone e comandos.
+- Os comandos rodam como console quando o jogador clica; `%player%` é o jogador.
+- As chaves antigas em português (`codigos`, `mensagens`, `max_usos`, `permissao`, `itens`, `comandos`, `exibicao`, `entradas`, `codigo_invalido`, `ja_resgatado`, `limite_atingido`, `sem_permissao_codigo`, `sucesso` e o `{codigo}` nos textos) continuam valendo: os arquivos que você já tem não precisam mudar.
 
 ### Comandos de admin
 

@@ -1,5 +1,6 @@
 package com.f4xizzz.serverbuddy.modules.chatguard
 
+import com.f4xizzz.serverbuddy.core.ChatPipeline
 import com.f4xizzz.serverbuddy.core.CommandHooks
 import com.f4xizzz.serverbuddy.core.ConfigFiles
 import com.f4xizzz.serverbuddy.core.Durations
@@ -8,15 +9,12 @@ import com.f4xizzz.serverbuddy.core.SbPermissions
 import com.f4xizzz.serverbuddy.core.Texts
 import com.f4xizzz.serverbuddy.modules.commandblock.CommandBlockService
 import com.f4xizzz.serverbuddy.modules.commandblock.CommandMatcher
-import net.fabricmc.fabric.api.event.Event
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
-import net.fabricmc.fabric.api.message.v1.ServerMessageEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import org.slf4j.LoggerFactory
@@ -33,9 +31,6 @@ object ChatGuardService {
     const val BYPASS = "serverbuddy.chatguard.bypass"
     const val ADMIN = "serverbuddy.chatguard.admin"
     const val NOTIFY = "serverbuddy.chatguard.notify"
-
-    /** A checagem roda antes dos outros ouvintes de chat (mute, chat da equipe...), para o banido não furar nenhum deles. */
-    private val EARLY: ResourceLocation = ResourceLocation.fromNamespaceAndPath("serverbuddy", "chatguard")
 
     @Volatile
     var config: ChatGuardConfig = ChatGuardConfig()
@@ -85,8 +80,9 @@ object ChatGuardService {
             ready = true
         }
         ServerLifecycleEvents.SERVER_STOPPED.register { ready = false }
-        ServerMessageEvents.ALLOW_CHAT_MESSAGE.addPhaseOrdering(EARLY, Event.DEFAULT_PHASE)
-        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register(EARLY, ServerMessageEvents.AllowChatMessage { message, sender, _ -> onChat(sender, message.signedContent()) })
+        // A etapa GUARD do chat: depois do mute/chat da equipe e do trivia, antes do formato (veja ChatPipeline). Quem acabou de acertar
+        // uma pergunta do trivia não conta como repetição.
+        ChatPipeline.register(ChatPipeline.Stage.GUARD) { chat -> chat.answered || onChat(chat.sender, chat.text) }
         ServerPlayConnectionEvents.JOIN.register { handler, _, _ -> if (ready) stateOf(handler.player.uuid) }
         ServerPlayConnectionEvents.DISCONNECT.register { handler, _ ->
             val id = handler.player.uuid
@@ -122,6 +118,13 @@ object ChatGuardService {
         while (tracker.messages.size > keep) tracker.messages.removeAt(0)
         val floodMs = cfg.flood.seconds.coerceAtLeast(1) * 1000L
         tracker.times.removeAll { now - it > floodMs }
+    }
+
+    /** [player] está banido do chat agora (quem tem o bypass nunca está)? Só consulta: não conta nada nem avisa. */
+    fun isChatBanned(player: ServerPlayer): Boolean {
+        if (!config.enabled || !ready) return false
+        if (SbPermissions.check(player, BYPASS, 3)) return false
+        return peek(player.uuid).bannedAt(System.currentTimeMillis())
     }
 
     /** Devolve true se a mensagem pode seguir. */

@@ -21,7 +21,7 @@ async function say(from, other, text, wait = 1000) {
 
 (async () => {
   console.log('== arquivos e módulo');
-  t.check('ChatGuard/config.json criado com a explicação', fs.existsSync(DIR + '/config.json') && /COMO FUNCIONA/.test(fs.readFileSync(DIR + '/config.json', 'utf8')));
+  t.check('ChatGuard/config.json criado com a explicação', fs.existsSync(DIR + '/config.json') && /HOW IT WORKS|COMO FUNCIONA/.test(fs.readFileSync(DIR + '/config.json', 'utf8')));
   const modules = t.rcon('sb modules').replace(/\n/g, ' ');
   t.check('/sb modules mostra o chatguard rodando', /✔ chatguard/.test(modules), modules.slice(0, 120));
   const cfg = JSON.parse(strip(fs.readFileSync(DIR + '/config.json', 'utf8')));
@@ -73,7 +73,7 @@ async function say(from, other, text, wait = 1000) {
   r = await say(a, b, 'Texto repetido do teste dois');
   t.check('4º erro do segundo ciclo: ban de 14s (8s da escada + 6 avisos acumulados × 1s)', /banido do chat por 14s/.test(r.self), flat(r.self));
   out = t.rcon('chatguard history CgA');
-  t.check('/chatguard history mostra avisos e os dois bans', /AVISO/.test(out) && (out.match(/BAN/g) || []).length >= 2, out.replace(/\n/g, ' | ').slice(0, 300));
+  t.check('/chatguard history mostra avisos e os dois bans', /WARNING|AVISO/.test(out) && (out.match(/BAN/g) || []).length >= 2, out.replace(/\n/g, ' | ').slice(0, 300));
 
   console.log('== a equipe');
   out = t.rcon('chatguard unban CgA');

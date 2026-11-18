@@ -193,4 +193,18 @@ public class CatchComboLeaderboardDisplayRepository {
       }
 
    }
+
+   /** Deletes the row of one leaderboard display. Returns true when it is gone, false when the database failed (the error is logged). */
+   public static boolean delete(String displayId) {
+      String sql = "DELETE FROM catch_combo_leaderboard_display WHERE display_id = ?";
+
+      try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+         pstmt.setString(1, displayId);
+         pstmt.executeUpdate();
+         return true;
+      } catch (SQLException e) {
+         ServerBuddy.LOGGER.error("Could not delete leaderboard display '" + displayId + "' from the leaderboard!", e);
+         return false;
+      }
+   }
 }

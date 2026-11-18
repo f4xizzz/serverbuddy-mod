@@ -4,8 +4,10 @@ import com.f4xizzz.serverbuddy.mixin.DisplayEntityAccessor;
 import com.f4xizzz.serverbuddy.mixin.TextDisplayEntityAccessor;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -32,6 +34,9 @@ public class CatchComboLeaderboardManager {
    private static volatile List<CatchComboLeaderboardEntry> cachedTop;
    private static volatile long lastCacheRefreshMillis;
    private static final AtomicBoolean cacheRefreshInProgress;
+   /** Records deleted by [removeWithin]: a cache reload that already read the row before it was deleted must not bring it back. */
+   private static final Set<String> removedDisplayIds = ConcurrentHashMap.newKeySet();
+   private static final Object CACHE_LOCK = new Object();
 
    private CatchComboLeaderboardManager() {
    }
@@ -111,7 +116,11 @@ public class CatchComboLeaderboardManager {
             lastCacheRefreshMillis = now;
             CompletableFuture.runAsync(() -> {
                try {
-                  cachedDisplays = CatchComboLeaderboardDisplayRepository.loadAll();
+                  List<CatchComboLeaderboardDisplay> loaded = CatchComboLeaderboardDisplayRepository.loadAll();
+                  synchronized(CACHE_LOCK) {
+                     cachedDisplays = withoutRemoved(loaded);
+                  }
+
                   cachedTop = CatchComboLeaderboardRepository.getTop(10);
                } finally {
                   cacheRefreshInProgress.set(false);
@@ -120,6 +129,47 @@ public class CatchComboLeaderboardManager {
             });
          }
       }
+   }
+
+   private static List<CatchComboLeaderboardDisplay> withoutRemoved(List<CatchComboLeaderboardDisplay> displays) {
+      if (removedDisplayIds.isEmpty()) {
+         return displays;
+      }
+
+      List<CatchComboLeaderboardDisplay> kept = new ArrayList<>();
+
+      for(CatchComboLeaderboardDisplay display : displays) {
+         if (!removedDisplayIds.contains(display.displayId)) {
+            kept.add(display);
+         }
+      }
+
+      return kept;
+   }
+
+   /**
+    * Deletes the leaderboard displays (the saved records the ticker re-creates the hologram from, once a second) that sit inside [area] of [world],
+    * so a hologram cleared by /sb purgedisplays does not come back. Returns how many were deleted. Runs on the server thread, like [tick].
+    */
+   public static int removeWithin(ServerLevel world, AABB area) {
+      String dimension = world.dimension().location().toString();
+      List<String> deletedIds = new ArrayList<>();
+
+      // the database is the source of truth: the cache can be up to five seconds old
+      for(CatchComboLeaderboardDisplay record : CatchComboLeaderboardDisplayRepository.loadAll()) {
+         if (dimension.equals(record.dimension) && area.contains(record.x, record.y, record.z) && CatchComboLeaderboardDisplayRepository.delete(record.displayId)) {
+            deletedIds.add(record.displayId);
+         }
+      }
+
+      if (!deletedIds.isEmpty()) {
+         synchronized(CACHE_LOCK) {
+            removedDisplayIds.addAll(deletedIds);
+            cachedDisplays = withoutRemoved(cachedDisplays);
+         }
+      }
+
+      return deletedIds.size();
    }
 
    private static Display.TextDisplay spawnEntity(ServerLevel world, CatchComboLeaderboardDisplay record) {

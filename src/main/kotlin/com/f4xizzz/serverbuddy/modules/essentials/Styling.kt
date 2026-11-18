@@ -1,5 +1,6 @@
 package com.f4xizzz.serverbuddy.modules.essentials
 
+import com.f4xizzz.serverbuddy.core.ChatPipeline
 import com.f4xizzz.serverbuddy.core.Conditions
 import com.f4xizzz.serverbuddy.core.Modules
 import com.f4xizzz.serverbuddy.core.SbPermissions
@@ -8,7 +9,6 @@ import com.f4xizzz.serverbuddy.modules.commandblock.CommandBlockService
 import com.f4xizzz.serverbuddy.modules.tags.TagsService
 import eu.pb4.placeholders.api.PlaceholderContext
 import eu.pb4.placeholders.api.Placeholders
-import net.fabricmc.fabric.api.event.Event
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.minecraft.commands.CommandSourceStack
@@ -19,7 +19,6 @@ import net.minecraft.network.chat.PlayerChatMessage
 import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket
 import net.minecraft.network.protocol.game.ClientboundTabListPacket
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.network.FilteredText
@@ -39,9 +38,6 @@ import java.util.concurrent.ConcurrentHashMap
 object Styling {
     private val LOGGER = LoggerFactory.getLogger("ServerBuddy/Essentials")
 
-    /** Roda depois do mute, do chat da equipe e do gerenciador de chat: só vê o que já foi aprovado. */
-    private val LATE: ResourceLocation = ResourceLocation.fromNamespaceAndPath("serverbuddy", "styling")
-
     private val settings get() = EssentialsModule.config.styling
 
     @Volatile
@@ -57,8 +53,9 @@ object Styling {
     private val warned = ConcurrentHashMap.newKeySet<String>()
 
     fun register() {
-        ServerMessageEvents.ALLOW_CHAT_MESSAGE.addPhaseOrdering(Event.DEFAULT_PHASE, LATE)
-        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register(LATE, ServerMessageEvents.AllowChatMessage { message, sender, params -> onChat(message, sender, params) })
+        // A etapa FORMAT do chat: a última de todas (depois de mute, trivia, gerenciador de chat e dos ouvintes de outros mods), porque ela
+        // cancela a linha do jogo e manda a própria (veja ChatPipeline).
+        ChatPipeline.register(ChatPipeline.Stage.FORMAT) { chat -> onChat(chat.message, chat.sender, chat.params) }
         ServerMessageEvents.ALLOW_GAME_MESSAGE.register(ServerMessageEvents.AllowGameMessage { server, message, overlay -> onGameMessage(server, message, overlay) })
         ServerMessageEvents.ALLOW_COMMAND_MESSAGE.register(ServerMessageEvents.AllowCommandMessage { message, source, params -> onCommandMessage(message, source, params) })
         ServerPlayConnectionEvents.INIT.register(ServerPlayConnectionEvents.Init { handler, _ -> joining = handler.player })
