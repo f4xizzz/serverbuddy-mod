@@ -3,12 +3,12 @@
 	"id": "serverbuddy",
 	"version": "${version}",
 	"name": "ServerBuddy",
-	"description": "ServerBuddy: ferramentas para donos de servidor — kits, loja, caixas, menus (GUIs), anúncios, limpeza, eventos, resgates, storage de recompensas, logs, MOTD por situação, tags em menu, trivia, missões (com missões globais), passe de batalha, essentials (casas, warps, tpa, moderação, formato do chat...), gerenciador de chat, bloqueio de comandos e entrada em claims do Flan por permissão ou tag. Com o Cobblemon instalado, liga também caçadas, bosses, áreas de captura, combo de captura, Pokédex, editor de Pokémon, fichas (Shiny, Sexo e Shiny Ball), /pokesee, /compsee e a blacklist de golpes.",
+	"description": "ServerBuddy: a toolkit for server owners — kits, shop, crates, menus (GUIs), announcements, cleanup, events, redeem codes, reward storage, logs, situational MOTD, chest-menu tags, trivia, missions (with global missions), battle pass, essentials (homes, warps, tpa, moderation, chat format...), chat manager, command blocking and Flan claim entry by permission or tag. With Cobblemon installed it also enables hunts, bosses, catch areas, catch combo, Pokédex, the Pokémon editor, tokens (Shiny, Gender and Shiny Ball), /pokesee, /compsee and the move blacklist.",
 	"authors": [
 		"F4xizzz"
 	],
 	"contributors": [
-		"PokeSkies (Stampede e colaboradores): código dos módulos GUIs, Kits, Shop, Crates, Announcements e Clear"
+		"PokeSkies (Stampede and contributors): code of the GUIs, Kits, Shop, Crates, Announcements and Clear modules"
 	],
 	"license": [
 		"MPL-2.0",

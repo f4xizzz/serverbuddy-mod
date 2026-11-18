@@ -70,14 +70,14 @@ como o código se organiza: `docs/ARQUITETURA.md`.
   e ele anda para qualquer lado: leve-o para um chão plano com `tp` (ou monte uma plataforma, como o `shinyball-test`) antes de pulos, passos e bolas.
 - `gradlew build runServer` sobe o servidor antes do `:test`: rode `gradlew test` à parte.
 
-# Ecossistema: site + API + mod (atualizado em 12/11/2026)
+# Ecossistema: site + API + mod (atualizado em 17/11/2026)
 
-Feito e testado (bots no servidor de desenvolvimento e no JAR Pro ofuscado de um servidor "de produção" local, ativando contra o site local):
+Feito e testado (bots no servidor de desenvolvimento). Em 13/11/2026 o modelo mudou para **um JAR único, sem chave de licença nem ativação**: o que varia por plano é só a dashboard do site e as cotas de packs.
 
 | Item | Onde |
 |---|---|
-| 3 JARs (Basic, Plus, Pro) com ProGuard, `fabric.mod.json` próprio e bibliotecas por plano | `tiers.gradle`, `proguard/serverbuddy.pro` |
-| Ativação por chave (cache AES, janela offline, trava dura x suave, mensagem clara para chave de outro plano) | `license/` |
+| JAR único para o Modrinth (MPL-2.0), com as licenças de terceiros em `META-INF/licenses` | `build.gradle`, `licenses/` |
+| Pareamento sem chave: o site libera 5 dias da dashboard completa (por conta, servidor e rede) e depois exige Plus ou Pro | `dashboard/DashboardClient.kt`, `dashboard/DashboardBuild.kt` |
 | Dashboard ligada ao site (pareamento, WebSocket, visão geral, logs, configs, jogadores, rankings, console, auditoria) | `dashboard/` |
 | Gerenciar módulos e comandos por módulo | `core/CoreCommands.kt`, `core/SbCommands.kt` |
 | AFK com tag | `modules/essentials` (`afk-test`) |

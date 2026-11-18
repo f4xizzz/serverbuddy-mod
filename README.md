@@ -22,11 +22,11 @@ captura, recompensas da Pokédex, o editor/builder de Pokémon, as fichas (Shiny
 > (essentials; o que ainda não tem e os limites conhecidos estão em [docs/MODULOS.md](docs/MODULOS.md) e [docs/PROGRESSO.md](docs/PROGRESSO.md)).
 > As configs e os dados desses mods são importados na primeira execução.
 
-## Planos e JARs
+## Instalação e dashboard
 
-Instale o JAR único `serverbuddy-<versão>.jar` na pasta `mods/`. Ao iniciar o servidor, o mod avisa no console e no chat dos administradores sobre a dashboard.
+Baixe o JAR único `serverbuddy-<versão>.jar` no [Modrinth](https://modrinth.com/mod/serverbuddy) ou no [CurseForge](https://www.curseforge.com/minecraft/mc-mods/serverbuddy) e coloque-o na pasta `mods/`. Não há chave de licença nem ativação: todos os módulos valem para todos. Ao iniciar o servidor, o mod avisa no console e no chat dos administradores sobre a dashboard.
 
-Use `/sb dashboard sync` e informe o código de uso único em [servebuddy.site/dashboard](https://servebuddy.site/dashboard). O primeiro pareamento libera cinco dias grátis de dashboard Basic. Depois, a dashboard exige Plus ou Pro ativo na conta.
+Use `/sb dashboard sync` e informe o código de uso único em [servebuddy.site/dashboard](https://servebuddy.site/dashboard). O primeiro pareamento de uma conta libera cinco dias grátis da dashboard **completa** (uma vez por conta, por servidor e por rede). Depois, a dashboard exige Plus ou Pro ativo na conta; o mod em si continua funcionando normalmente.
 
 **Gerenciar módulos**: `/sb modules` mostra o estado, `/sb modules enable|disable <módulo>` liga/desliga (vale ao reiniciar),
 `/sb modules commands [módulo]` lista os comandos de cada módulo e `/sb modules command <nome> off|on` desliga UM comando sem desligar o módulo
