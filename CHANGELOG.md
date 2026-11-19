@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1 — 2026-11-19
+
+- The dashboard now lists the menus and shops that sit in sub-folders (`guis/kits`, `shops/<shop>/Categories/...`): the same files the game already loads.
+- Added `config.create`: the dashboard can create a new menu or shop file, blank or as a copy of another one. A new shop starts from a small template (a title and an empty 6-row chest), because a shop cannot be read from an empty file.
+- Companion website: a Modules screen that groups the configuration by area, and a visual editor for menus and shops (prices, pages, products and buttons).
+
+Replace the 1.1.0 JAR with this one and restart the server. Existing configuration files and data are not touched. The new dashboard screens need the matching website update.
+
+Validation: 287 mod tests (286 passed, one skipped) and 466 website tests.
+
 ## 1.1.0 — 2026-11-18
 
 - Added the dashboard management foundation, offline player profiles, inventory and ender chest, party, PC and Pokédex views.
