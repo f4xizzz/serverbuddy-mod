@@ -1,5 +1,6 @@
 package com.f4xizzz.serverbuddy.dashboard
 
+import com.f4xizzz.serverbuddy.core.ConfigFiles
 import com.f4xizzz.serverbuddy.core.Modules
 import com.f4xizzz.serverbuddy.modules.leaderboards.LeaderboardService
 import com.google.gson.JsonArray
@@ -36,6 +37,20 @@ object PlusProviders {
             JsonObject().apply {
                 addProperty("ok", true)
                 add("values", values)
+            }
+        }
+        DashboardProviders.register("config.create") { ctx ->
+            val from = ctx.params.get("from")?.takeIf { it.isJsonPrimitive }?.asString
+            val entry = try {
+                ConfigFiles.create(ctx.string("module"), ctx.string("file"), from)
+            } catch (e: ConfigFiles.CreateException) {
+                throw DashboardError(e.code, e.message)
+            }
+            JsonObject().apply {
+                addProperty("ok", true)
+                addProperty("module", entry.folder)
+                addProperty("file", entry.fileName)
+                addProperty("label", entry.label)
             }
         }
         DashboardProviders.register("config.reload", ::reload)

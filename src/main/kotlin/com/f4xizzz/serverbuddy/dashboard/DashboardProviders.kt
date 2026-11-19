@@ -33,7 +33,7 @@ object DashboardProviders {
     /** Method → minimum plan (the same table as DASHBOARD_METHODS in the site's shared/constants.js). */
     private val REQUIRED = mapOf(
         "overview.get" to "basic", "logs.tail" to "basic", "config.list" to "basic", "config.get" to "basic", "config.schema" to "basic",
-        "config.search" to "basic", "config.history" to "basic", "config.save" to "plus", "config.reload" to "plus", "config.validate" to "plus", "config.restore" to "plus",
+        "config.search" to "basic", "config.history" to "basic", "config.save" to "plus", "config.reload" to "plus", "config.validate" to "plus", "config.restore" to "plus", "config.create" to "plus",
         "redeem.list" to "plus", "redeem.get" to "plus", "redeem.validate" to "plus", "redeem.save" to "plus", "redeem.delete" to "plus", "redeem.reset" to "plus",
         "tags.list" to "plus", "tags.get" to "plus", "tags.player" to "plus", "tags.give" to "plus", "tags.remove" to "plus", "tags.equip" to "plus",
         "tags.validate" to "plus", "tags.save" to "plus", "tags.delete" to "plus", "players.list" to "plus", "players.get" to "plus", "players.inventory" to "plus",
@@ -45,7 +45,7 @@ object DashboardProviders {
 
     /** The methods that CHANGE something on the server: they go to the audit log and to the admins' chat. */
     val MUTATIONS: Set<String> = setOf(
-        "config.save", "config.reload", "config.restore", "redeem.save", "redeem.delete", "redeem.reset", "tags.give", "tags.remove", "tags.equip", "tags.save",
+        "config.save", "config.reload", "config.restore", "config.create", "redeem.save", "redeem.delete", "redeem.reset", "tags.give", "tags.remove", "tags.equip", "tags.save",
         "tags.delete", "pokemon.give", "pokemon.remove", "pokemon.move", "console.run", "luckperms.set", "luckperms.groupCreate", "luckperms.groupDelete",
         "luckperms.groupUpdate", "luckperms.groupParent", "luckperms.groupNode"
     )
@@ -99,7 +99,7 @@ object DashboardProviders {
     private fun summary(method: String, params: JsonObject, result: JsonElement): String = when (method) {
         "config.save" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/") + changedPaths(result)
         "config.restore" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/") + " <- " + (params.get("backup")?.asString ?: "")
-        "config.reload" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/")
+        "config.reload", "config.create" -> listOfNotNull(params.get("module")?.asString, params.get("file")?.asString).joinToString("/")
         "console.run" -> params.get("command")?.asString?.substringBefore(' ')?.take(32) ?: ""
         "redeem.save" -> (params.get("code")?.asString ?: "") + changedPaths(result)
         "redeem.delete" -> params.get("code")?.asString ?: ""

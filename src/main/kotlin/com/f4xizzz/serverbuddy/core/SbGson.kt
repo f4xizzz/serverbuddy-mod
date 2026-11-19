@@ -173,7 +173,14 @@ object ConfigFiles {
         val defaultsWriter: Gson by lazy { gson.newBuilder().setPrettyPrinting().serializeNulls().create() }
     }
 
-    private class Collection(val folder: String, val extension: String, val type: Class<*>, val gson: Gson, val reload: (() -> Unit)?, val defaults: () -> Any)
+    private class Collection(val folder: String, val extension: String, val type: Class<*>, val gson: Gson, val reload: (() -> Unit)?, val defaults: () -> Any, val recursive: Boolean, val template: (() -> String)?) {
+        /** Is [path] (relative to `config/ServerBuddy`, with `/`) this folder or, when the folder is recursive, a folder inside it? */
+        fun covers(path: String) = path == folder || (recursive && path.startsWith("$folder/"))
+    }
+
+    /** A recursive content folder is read this many levels down and no more than this many files (a folder with something huge in it must not freeze the dashboard). */
+    private const val MAX_DEPTH = 6
+    private const val MAX_FILES = 500
 
     private val registry = LinkedHashMap<String, Entry>()
     private val collections = ArrayList<Collection>()
@@ -194,12 +201,29 @@ object ConfigFiles {
     fun entries(): List<Entry> {
         val all = LinkedHashMap<String, Entry>(registry)
         for (collection in collections) {
-            val files = File(baseDir(), collection.folder).listFiles { f -> f.isFile && f.name.endsWith(collection.extension) }?.sortedBy { it.name } ?: continue
-            for (file in files) {
-                all.putIfAbsent("${collection.folder}/${file.name}", Entry(collection.folder, file.name, collection.type, collection.defaults, collection.reload, collection.gson, false))
+            val root = File(baseDir(), collection.folder)
+            for (file in filesOf(collection, root)) {
+                val inside = file.parentFile.relativeTo(root).invariantSeparatorsPath
+                val folder = if (inside.isEmpty()) collection.folder else "${collection.folder}/$inside"
+                all.putIfAbsent("$folder/${file.name}", Entry(folder, file.name, collection.type, collection.defaults, collection.reload, collection.gson, false))
             }
         }
         return all.values.toList()
+    }
+
+    /**
+     * The files of a content folder: the ones right inside it or, for a recursive folder, the ones in the folders below it too (the ones right inside
+     * come first; hidden folders are skipped). A folder that does not exist has none, and looking never creates it.
+     */
+    private fun filesOf(collection: Collection, root: File): List<File> {
+        if (!root.isDirectory) return emptyList()
+        val found = if (collection.recursive) {
+            root.walkTopDown().maxDepth(MAX_DEPTH).onEnter { dir -> dir == root || !dir.name.startsWith(".") }.filter { it.isFile }.take(MAX_FILES).toList()
+        } else {
+            root.listFiles { f -> f.isFile }?.toList().orEmpty()
+        }
+        return found.filter { it.name.endsWith(collection.extension) }
+            .sortedWith(compareBy({ it.parentFile != root }, { it.relativeTo(root).invariantSeparatorsPath }))
     }
 
     /** The files `/serverbuddy config check` and `update` look at. */
@@ -211,8 +235,53 @@ object ConfigFiles {
     }
 
     /** Lists every [extension] file inside [folder] (content the admin adds files to: kits, crates, pools...). New files show up on their own. */
-    fun collection(folder: String, type: Class<*>, extension: String = ".json", gson: Gson = SbGson.gson, reload: (() -> Unit)? = null, defaults: () -> Any) {
-        collections += Collection(folder, extension, type, gson, reload, defaults)
+    fun collection(
+        folder: String,
+        type: Class<*>,
+        extension: String = ".json",
+        gson: Gson = SbGson.gson,
+        reload: (() -> Unit)? = null,
+        recursive: Boolean = false,
+        template: (() -> String)? = null,
+        defaults: () -> Any
+    ) {
+        collections += Collection(folder, extension, type, gson, reload, defaults, recursive, template)
+    }
+
+    /** Why [create] said no: [code] is what the dashboard shows (`bad_params` or `exists`) and [message] says what was wrong. */
+    class CreateException(val code: String, message: String) : Exception(message)
+
+    private val SAFE_NAME = Regex("[A-Za-z0-9_-]{1,48}")
+
+    /**
+     * Makes a NEW file in a content folder for the dashboard: a [collection] folder, or a folder inside a recursive one. It starts as a copy of [from] (another
+     * file of the same folder), as the folder's own template text (a class that cannot be built empty, like a shop, has one) or as the defaults of its class.
+     * Nothing outside the content folders can be made, whatever the names say: the names may only
+     * have letters, numbers, `_` and `-`. Throws [CreateException] (`bad_params`: not a content folder, a name that is not allowed or a [from] that is not
+     * there; `exists`: there is a file with that name already). The module still has to read the new file: the dashboard asks for a reload after saving it.
+     */
+    fun create(folder: String, fileName: String, from: String? = null): Entry {
+        val collection = collections.firstOrNull { it.covers(folder) } ?: throw CreateException("bad_params", "not a content folder: $folder")
+        val extension = collection.extension
+        fun allowed(name: String) = name.endsWith(extension) && SAFE_NAME.matches(name.removeSuffix(extension))
+        if (!allowed(fileName)) throw CreateException("bad_params", "file name not allowed: $fileName")
+        if (from != null && !allowed(from)) throw CreateException("bad_params", "source name not allowed: $from")
+        val inside = folder.removePrefix(collection.folder).trim('/')
+        if (inside.isNotEmpty() && inside.split('/').any { !SAFE_NAME.matches(it) }) throw CreateException("bad_params", "folder not allowed: $folder")
+        val dir = dir(folder)
+        val target = File(dir, fileName)
+        if (target.exists()) throw CreateException("exists", "$folder/$fileName already exists")
+        val source = from?.let { File(dir, it) }
+        if (source != null && !source.isFile) throw CreateException("bad_params", "source not found: $from")
+        dir.mkdirs()
+        val entry = Entry(folder, fileName, collection.type, collection.defaults, collection.reload, collection.gson, false)
+        val template = collection.template
+        when {
+            source != null -> source.copyTo(target)
+            template != null -> target.writeText(template(), Charsets.UTF_8)
+            else -> target.writeText(ConfigDocs.render(entry.defaults(), collection.gson.newBuilder().setPrettyPrinting().create()), Charsets.UTF_8)
+        }
+        return entry
     }
 
     /**

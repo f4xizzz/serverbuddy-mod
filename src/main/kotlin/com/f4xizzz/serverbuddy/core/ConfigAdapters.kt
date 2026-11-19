@@ -74,7 +74,7 @@ object ConfigAdapters {
 
         // the ported modules have their own Gson (Minecraft types, actions, requirements); the defaults come from the class with nothing in the file
         if (Modules.isRunning("announcements")) items("Announcements/groups", AnnouncementGroup::class.java, AnnouncementsModule.INSTANCE.configManager.gson)
-        if (Modules.isRunning("guis")) items("GUIs/guis", GuiConfig::class.java, GuisModule.INSTANCE.configManager.gson)
+        if (Modules.isRunning("guis")) items("GUIs/guis", GuiConfig::class.java, GuisModule.INSTANCE.configManager.gson, recursive = true)
         if (Modules.isRunning("kits")) {
             val gson = KitsModule.INSTANCE.gson
             items("Kits/kits", Kit::class.java, gson)
@@ -83,7 +83,8 @@ object ConfigAdapters {
         }
         if (Modules.isRunning("shop")) {
             val gson = ShopModule.INSTANCE.gson
-            items("Shop/shops", ShopFile::class.java, gson)
+            // the shop module reads every .json under shops/ (the id is the file name, in any folder), and the big shops keep a folder of categories each
+            items("Shop/shops", ShopFile::class.java, gson, recursive = true, template = { NEW_SHOP })
             items("Shop/confirm_menus", ConfirmMenuConfig::class.java, gson)
         }
         if (Modules.isRunning("crates")) {
@@ -98,10 +99,26 @@ object ConfigAdapters {
         }
     }
 
-    /** A folder of files of one class whose defaults come from the class itself (Gson fills what the file leaves out). */
-    private fun items(folder: String, type: Class<*>, gson: Gson) {
-        ConfigFiles.collection(folder, type, gson = gson) { gson.fromJson("{}", type) ?: throw IllegalStateException("no defaults for ${type.simpleName}") }
+    /**
+     * A folder of files of one class whose defaults come from the class itself (Gson fills what the file leaves out). [recursive]: the folders inside it
+     * hold files of the same kind (the menus keep their kits menus in `guis/kits`, and the module reads them all).
+     */
+    private fun items(folder: String, type: Class<*>, gson: Gson, recursive: Boolean = false, template: (() -> String)? = null) {
+        ConfigFiles.collection(folder, type, gson = gson, recursive = recursive, template = template) { gson.fromJson("{}", type) ?: throw IllegalStateException("no defaults for ${type.simpleName}") }
     }
+
+    /**
+     * A new shop made by the dashboard. A shop cannot be built from nothing (`title` and `type` are required when the file is read), so it starts from
+     * this text: an empty chest of 6 rows with no products and no decoration.
+     */
+    private val NEW_SHOP = """
+        {
+          "title": "<bold>New shop",
+          "type": "GENERIC_9x6",
+          "entries": {},
+          "items": {}
+        }
+    """.trimIndent() + "\n"
 
     /** `Events/shiny.json` is `{ "eventos": [...] }`: this class only describes that for the dashboard (the events are read by [EventConfigManager]). */
     class EventsFile(@SerializedName("eventos") val events: List<EventDefinition> = ArrayList())
